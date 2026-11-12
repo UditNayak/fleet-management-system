@@ -1,0 +1,94 @@
+name: fleet-management-system
+
+# Shared settings for every Node container (one image, different entry points)
+x-node: &node
+  build: .
+  image: fleet-management-system:dev
+  init: true
+  volumes:
+    - .:/app # live code reload in development
+    - /app/node_modules # keep the container's node_modules, not the host's
+
+x-service: &service
+  <<: *node
+  env_file: .env
+  restart: unless-stopped
+  healthcheck:
+    test:
+      - CMD
+      - node
+      - -e
+      - "fetch('http://localhost:' + process.env.PORT + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 20s
+
+services:
+  gateway:
+    <<: *service
+    command: npx nodemon --exitcrash --watch services/gateway --watch shared services/gateway/index.js
+    environment:
+      PORT: 3000
+    ports:
+      - '3000:3000' # the only port exposed to the host
+
+  user-service:
+    <<: *service
+    command: npx nodemon --exitcrash --watch services/user --watch shared services/user/index.js
+    environment:
+      PORT: 3001
+
+  vehicle-service:
+    <<: *service
+    command: npx nodemon --exitcrash --watch services/vehicle --watch shared services/vehicle/index.js
+    environment:
+      PORT: 3002
+
+  telemetry-service:
+    <<: *service
+    command: npx nodemon --exitcrash --watch services/telemetry --watch shared services/telemetry/index.js
+    environment:
+      PORT: 3003
+
+  maps-service:
+    <<: *service
+    command: npx nodemon --exitcrash --watch services/maps --watch shared services/maps/index.js
+    environment:
+      PORT: 3004
+
+  notification-service:
+    <<: *service
+    command: npx nodemon --exitcrash --watch services/notification --watch shared services/notification/index.js
+    environment:
+      PORT: 3005
+
+  # ---------- test profile: docker compose --profile test run --rm test ----------
+  mongo-test:
+    image: mongo:7
+    profiles: [test]
+    tmpfs:
+      - /data/db # throw-away storage, wiped when the container stops
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  test:
+    <<: *node
+    profiles: [test]
+    command: npm test
+    environment:
+      NODE_ENV: test
+      LOG_LEVEL: silent
+      MONGO_URI: mongodb://mongo-test:27017/fleet_test
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+
+  # ---------- tools profile: docker compose --profile tools run --rm lint ----------
+  lint:
+    <<: *node
+    profiles: [tools]
+    command: npm run lint

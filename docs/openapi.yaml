@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info:
+  title: Fleet Management System API
+  version: 1.0.0
+  description: |
+    API Gateway for the Fleet Management System. All `/api/*` routes go through the gateway,
+    which verifies the API key, applies rate limiting and forwards the request to the right service.
+servers:
+  - url: http://localhost:3000
+    description: Local (Docker Compose)
+tags:
+  - name: Health
+    description: Service status
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Gateway health check
+      description: Public endpoint, no API key required.
+      responses:
+        '200':
+          description: Gateway is up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                service: gateway
+                db: not_used
+                uptime: 42.7
+                timestamp: '2026-11-12T10:00:00.000Z'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        service:
+          type: string
+        db:
+          type: string
+          enum: [connected, disconnected, connecting, disconnecting, not_used]
+        uptime:
+          type: number
+          description: Seconds since the process started
+        timestamp:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: NOT_FOUND
+            message:
+              type: string
+              example: Route GET /xyz not found
+            details:
+              description: Optional extra information (e.g. validation errors)

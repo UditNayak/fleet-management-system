@@ -1,0 +1,33 @@
+{
+  "name": "fleet-management-system",
+  "version": "1.0.0",
+  "description": "Fleet Management System: Express API Gateway + microservices with geolocation, SMS notifications, Swagger docs and Mocha/Chai tests",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "mocha",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write . && eslint --fix ."
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "joi": "^17.13.3",
+    "mongoose": "^8.16.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "chai": "^4.5.0",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.5",
+    "globals": "^16.3.0",
+    "mocha": "^11.7.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.0",
+    "supertest": "^7.1.0"
+  }
+}
