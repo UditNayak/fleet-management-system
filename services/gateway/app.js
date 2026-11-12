@@ -1,4 +1,10 @@
-const createApp = require('../../shared/createApp');
+const config = require('../../shared/config');
+const buildGateway = require('./buildGateway');
+const services = require('./routes');
 
-// The gateway has no database; proxy routes, API keys and rate limiting arrive in Phase 2
-module.exports = createApp({ name: 'gateway', useDb: false });
+module.exports = buildGateway({
+  apiKeys: config.gateway.apiKeys,
+  rateLimit: config.gateway.rateLimit,
+  timeoutMs: config.gateway.proxyTimeoutMs,
+  services,
+});

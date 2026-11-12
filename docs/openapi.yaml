@@ -3,23 +3,54 @@ info:
   title: Fleet Management System API
   version: 1.0.0
   description: |
-    API Gateway for the Fleet Management System. All `/api/*` routes go through the gateway,
-    which verifies the API key, applies rate limiting and forwards the request to the right service.
+    Backend for a fleet management platform, exposed through an **Express API Gateway**.
+
+    ### How to call the API
+    1. Every `/api/*` request needs an **API key** in the `x-api-key` header.
+       Click **Authorize** above and enter your key (local default: `fleet-dev-key-123`).
+    2. Endpoints marked with a lock and **BearerAuth** also need a JWT (`Authorization: Bearer <token>`),
+       obtained from `POST /api/users/login`.
+
+    ### Gateway routing
+    | Gateway route | Target service |
+    |---|---|
+    | `/api/users/*` | User Service |
+    | `/api/vehicles/*` | Vehicle/Fleet Service |
+    | `/api/telemetry/*` | Telemetry Service |
+    | `/api/maps/*` | Geolocation Service |
+    | `/api/notifications/*` | Notification Service |
+
+    The `/api/<service>` prefix is stripped before forwarding, e.g. `GET /api/vehicles/42` → vehicle-service `GET /42`.
+
+    ### Rate limiting
+    Each API key may send a limited number of requests per window (default **100 per 15 minutes**).
+    Every response includes `RateLimit` and `RateLimit-Policy` headers; over the limit the gateway answers **429**
+    with a `Retry-After` header.
+
+    ### Errors
+    All errors share one shape: `{ "error": { "code": "...", "message": "...", "details": ... } }`.
+    Every response carries an `X-Request-Id` header for tracing.
 servers:
   - url: http://localhost:3000
     description: Local (Docker Compose)
 tags:
   - name: Health
-    description: Service status
+    description: Public status endpoints (no API key)
+  - name: Gateway
+    description: Requests routed through the gateway to backend services
 paths:
   /health:
     get:
       tags: [Health]
       summary: Gateway health check
       description: Public endpoint, no API key required.
+      security: []
       responses:
         '200':
           description: Gateway is up
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
           content:
             application/json:
               schema:
@@ -30,16 +61,200 @@ paths:
                 db: not_used
                 uptime: 42.7
                 timestamp: '2026-11-12T10:00:00.000Z'
+
+  /health/services:
+    get:
+      tags: [Health]
+      summary: Status of every backend service
+      description: |
+        Public endpoint. The gateway calls `/health` on each of the 5 services in parallel
+        (2 s timeout each). Returns **503** if any service is down or degraded.
+      security: []
+      responses:
+        '200':
+          description: All services are up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicesHealth'
+              example:
+                status: ok
+                services:
+                  - { name: user-service, status: up, db: connected, responseTimeMs: 4 }
+                  - { name: vehicle-service, status: up, db: connected, responseTimeMs: 3 }
+                  - { name: telemetry-service, status: up, db: connected, responseTimeMs: 3 }
+                  - { name: maps-service, status: up, db: connected, responseTimeMs: 5 }
+                  - { name: notification-service, status: up, db: connected, responseTimeMs: 4 }
+                timestamp: '2026-11-12T10:00:00.000Z'
+        '503':
+          description: At least one service is down
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServicesHealth'
+              example:
+                status: degraded
+                services:
+                  - { name: user-service, status: up, db: connected, responseTimeMs: 4 }
+                  - { name: vehicle-service, status: down, responseTimeMs: 12 }
+                  - { name: telemetry-service, status: up, db: connected, responseTimeMs: 3 }
+                  - { name: maps-service, status: up, db: connected, responseTimeMs: 5 }
+                  - { name: notification-service, status: up, db: connected, responseTimeMs: 4 }
+                timestamp: '2026-11-12T10:00:00.000Z'
+
+  /api/{service}/health:
+    get:
+      tags: [Gateway]
+      summary: Health of one backend service, routed through the gateway
+      description: |
+        Demonstrates gateway routing: the request passes API key verification and rate limiting,
+        then is forwarded to the selected service's `/health`. The `service` field in the response
+        shows which service answered.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: service
+          in: path
+          required: true
+          description: Gateway route prefix
+          schema:
+            type: string
+            enum: [users, vehicles, telemetry, maps, notifications]
+          example: users
+      responses:
+        '200':
+          description: Request routed successfully; body comes from the target service
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+            RateLimit:
+              $ref: '#/components/headers/RateLimit'
+            RateLimit-Policy:
+              $ref: '#/components/headers/RateLimit-Policy'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                service: user-service
+                db: connected
+                uptime: 1532.4
+                timestamp: '2026-11-12T10:00:00.000Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
       in: header
       name: x-api-key
+      description: Required on every `/api/*` request. Verified by the gateway.
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT from `POST /api/users/login`. Verified by the backend services.
+
+  headers:
+    X-Request-Id:
+      description: Unique request ID (generated by the gateway, or the one sent by the client)
+      schema:
+        type: string
+        example: 3f2b8c1e-7d4a-4b9e-9a51-2c6d8e0f1a23
+    RateLimit:
+      description: Remaining quota for this API key (IETF draft-8 format)
+      schema:
+        type: string
+        example: '"100-in-15min"; r=97; t=845'
+    RateLimit-Policy:
+      description: Rate limit policy for this API key
+      schema:
+        type: string
+        example: '"100-in-15min"; q=100; w=900'
+    Retry-After:
+      description: Seconds to wait before retrying
+      schema:
+        type: integer
+        example: 845
+
+  responses:
+    Unauthorized:
+      description: API key missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing:
+              summary: No x-api-key header
+              value:
+                error:
+                  code: MISSING_API_KEY
+                  message: An API key is required in the x-api-key header
+            invalid:
+              summary: Wrong API key
+              value:
+                error:
+                  code: INVALID_API_KEY
+                  message: The API key is not valid
+    NotFound:
+      description: Unknown route
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Route GET /api/unknown not found
+    TooManyRequests:
+      description: Rate limit exceeded for this API key
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests. Limit is 100 per 900s; retry in 845s
+    ServiceUnavailable:
+      description: The target service is not reachable (e.g. its container is stopped)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: SERVICE_UNAVAILABLE
+              message: vehicle-service is currently unavailable
+              details:
+                service: vehicle-service
+    GatewayTimeout:
+      description: The target service did not respond within the gateway timeout
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: GATEWAY_TIMEOUT
+              message: vehicle-service did not respond in time
+              details:
+                service: vehicle-service
+
   schemas:
     Health:
       type: object
@@ -49,12 +264,39 @@ components:
           enum: [ok, degraded]
         service:
           type: string
+          example: user-service
         db:
           type: string
           enum: [connected, disconnected, connecting, disconnecting, not_used]
         uptime:
           type: number
           description: Seconds since the process started
+        timestamp:
+          type: string
+          format: date-time
+    ServicesHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        services:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: vehicle-service
+              status:
+                type: string
+                enum: [up, degraded, down]
+              db:
+                type: string
+                example: connected
+              responseTimeMs:
+                type: integer
+                example: 4
         timestamp:
           type: string
           format: date-time
@@ -72,4 +314,4 @@ components:
               type: string
               example: Route GET /xyz not found
             details:
-              description: Optional extra information (e.g. validation errors)
+              description: Optional extra information (e.g. validation errors, failing service)

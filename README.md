@@ -40,6 +40,39 @@ curl http://localhost:3000/health
 docker compose ps        # all services should be "healthy"
 ```
 
+## API Gateway
+
+All requests go through the gateway at `http://localhost:3000`.
+
+| Endpoint               | API key | Description                                     |
+| ---------------------- | ------- | ----------------------------------------------- |
+| `GET /health`          | no      | Gateway health                                  |
+| `GET /health/services` | no      | Status of all 5 services (503 if any is down)   |
+| `GET /api-docs`        | no      | Swagger UI (raw spec: `/api-docs/openapi.json`) |
+| `/api/users/*`         | yes     | → User Service                                  |
+| `/api/vehicles/*`      | yes     | → Vehicle/Fleet Service                         |
+| `/api/telemetry/*`     | yes     | → Telemetry Service                             |
+| `/api/maps/*`          | yes     | → Geolocation Service                           |
+| `/api/notifications/*` | yes     | → Notification Service                          |
+
+- **API key:** send `x-api-key: <key>`. Valid keys come from `API_KEYS` in `.env` (local default `fleet-dev-key-123`).
+  Missing → `401 MISSING_API_KEY`, wrong → `401 INVALID_API_KEY`.
+- **Rate limiting:** `RATE_LIMIT_MAX` requests per key per `RATE_LIMIT_WINDOW_MS` (default 100 / 15 min).
+  Over the limit → `429 RATE_LIMITED` with a `Retry-After` header.
+- **Forwarding:** the `/api/<service>` prefix is stripped (`/api/vehicles/42` → vehicle-service `/42`);
+  method, query, headers (except `x-api-key`) and body are forwarded unchanged.
+- **Failures:** service down → `503 SERVICE_UNAVAILABLE`; slower than `PROXY_TIMEOUT_MS` → `504 GATEWAY_TIMEOUT`.
+- **Tracing:** every response carries `X-Request-Id`, which is also logged by the service that handled it.
+
+```bash
+curl http://localhost:3000/api/users/health -H "x-api-key: fleet-dev-key-123"
+```
+
+### Postman
+
+Import `postman/fleet-management.postman_collection.json`. The collection variables `baseUrl` and `apiKey`
+are pre-filled, and the API key is sent automatically on every request that needs it.
+
 ## Tests
 
 Tests run in Docker against a throw-away MongoDB container (never against Atlas):
@@ -72,5 +105,6 @@ docker compose --profile test --profile tools down -v --rmi all
 services/   gateway + one folder per microservice (app.js builds the app, index.js starts it)
 shared/     config, logger, DB connection, app factory, error handling
 test/       Mocha/Chai test suite
-docs/       OpenAPI (Swagger) specification
+docs/       OpenAPI (Swagger) specification, MongoDB Atlas setup guide
+postman/    Postman collection
 ```

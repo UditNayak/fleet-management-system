@@ -1,0 +1,294 @@
+{
+  "info": {
+    "name": "Fleet Management System",
+    "description": "Requests for the Fleet Management System API Gateway.\n\n1. Import this collection.\n2. Check the collection variables `baseUrl` and `apiKey`.\n3. The API key is sent automatically (collection-level auth: header `x-api-key`), except where a request overrides it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "x-api-key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apiKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "apiKey",
+      "value": "fleet-dev-key-123"
+    }
+  ],
+  "item": [
+    {
+      "name": "Gateway",
+      "description": "Health, routing, API key verification and rate limiting.",
+      "item": [
+        {
+          "name": "Gateway health (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "No API key needed.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "All services health (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "services"]
+            },
+            "description": "Gateway pings all 5 services. 503 if any is down.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "API key missing \u2192 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "health"]
+            },
+            "description": "No x-api-key header \u2192 401 MISSING_API_KEY.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('MISSING_API_KEY', () => pm.expect(pm.response.json().error.code).to.eql('MISSING_API_KEY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API key invalid \u2192 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "wrong-key"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "health"]
+            },
+            "description": "Wrong x-api-key \u2192 401 INVALID_API_KEY.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('INVALID_API_KEY', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_API_KEY'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Routed: /api/users/health \u2192 user-service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "health"]
+            },
+            "description": "Valid API key (collection auth). Gateway forwards to user-service's /health; the `service` field proves routing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Answered by user-service', () => pm.expect(pm.response.json().service).to.eql('user-service'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Routed: /api/vehicles/health \u2192 vehicle-service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "health"]
+            },
+            "description": "Valid API key (collection auth). Gateway forwards to vehicle-service's /health; the `service` field proves routing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Answered by vehicle-service', () => pm.expect(pm.response.json().service).to.eql('vehicle-service'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Routed: /api/telemetry/health \u2192 telemetry-service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/telemetry/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "telemetry", "health"]
+            },
+            "description": "Valid API key (collection auth). Gateway forwards to telemetry-service's /health; the `service` field proves routing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Answered by telemetry-service', () => pm.expect(pm.response.json().service).to.eql('telemetry-service'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Routed: /api/maps/health \u2192 maps-service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "health"]
+            },
+            "description": "Valid API key (collection auth). Gateway forwards to maps-service's /health; the `service` field proves routing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Answered by maps-service', () => pm.expect(pm.response.json().service).to.eql('maps-service'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Routed: /api/notifications/health \u2192 notification-service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "health"]
+            },
+            "description": "Valid API key (collection auth). Gateway forwards to notification-service's /health; the `service` field proves routing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Answered by notification-service', () => pm.expect(pm.response.json().service).to.eql('notification-service'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown route \u2192 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/unknown/thing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "unknown", "thing"]
+            },
+            "description": "Unknown /api prefix \u2192 404 NOT_FOUND."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 404', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

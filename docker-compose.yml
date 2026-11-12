@@ -27,11 +27,17 @@ x-service: &service
 services:
   gateway:
     <<: *service
-    command: npx nodemon --exitcrash --watch services/gateway --watch shared services/gateway/index.js
+    command: npx nodemon --exitcrash --watch services/gateway --watch shared --watch docs -e js,json,yaml services/gateway/index.js
     environment:
       PORT: 3000
     ports:
       - '3000:3000' # the only port exposed to the host
+    depends_on: # start order only; the gateway still runs if a service is down
+      - user-service
+      - vehicle-service
+      - telemetry-service
+      - maps-service
+      - notification-service
 
   user-service:
     <<: *service
@@ -83,6 +89,7 @@ services:
       NODE_ENV: test
       LOG_LEVEL: silent
       MONGO_URI: mongodb://mongo-test:27017/fleet_test
+      API_KEYS: test-key
     depends_on:
       mongo-test:
         condition: service_healthy
