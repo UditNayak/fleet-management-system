@@ -90,6 +90,8 @@ services:
       LOG_LEVEL: silent
       MONGO_URI: mongodb://mongo-test:27017/fleet_test
       API_KEYS: test-key
+      JWT_SECRET: test-secret-that-is-at-least-32-characters-long
+      BCRYPT_ROUNDS: 4
     depends_on:
       mongo-test:
         condition: service_healthy

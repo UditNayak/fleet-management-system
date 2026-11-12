@@ -4,16 +4,22 @@ const { connectDB, disconnectDB } = require('./db');
 
 const SHUTDOWN_TIMEOUT_MS = 10000;
 
-async function startServer(app, { name, useDb = true }) {
+/**
+ * @param {object}   options
+ * @param {string}   options.name
+ * @param {boolean}  [options.useDb]
+ * @param {Function} [options.onReady] async () => void, runs after the DB connects and before listening
+ *                                     (e.g. creating the bootstrap admin)
+ */
+async function startServer(app, { name, useDb = true, onReady }) {
   const logger = createLogger(name);
 
-  if (useDb) {
-    try {
-      await connectDB(config.mongoUri, logger);
-    } catch (err) {
-      logger.error(`Startup failed: ${err.message}`);
-      process.exit(1);
-    }
+  try {
+    if (useDb) await connectDB(config.mongoUri, logger);
+    if (onReady) await onReady();
+  } catch (err) {
+    logger.error(`Startup failed: ${err.message}`);
+    process.exit(1);
   }
 
   const server = app.listen(config.port, () => logger.info(`Listening on port ${config.port}`));

@@ -72,6 +72,37 @@ curl http://localhost:3000/api/users/health -H "x-api-key: fleet-dev-key-123"
 
 Import `postman/fleet-management.postman_collection.json`. The collection variables `baseUrl` and `apiKey`
 are pre-filled, and the API key is sent automatically on every request that needs it.
+Set `adminEmail` / `adminPassword` to your admin's credentials (defaults match `.env.example`).
+**Login** requests save the JWT into `adminToken` / `driverToken`, which the other requests use.
+
+## Authentication & Roles
+
+Two independent layers:
+
+| Layer   | Header                          | Checked by   | Answers                                    |
+| ------- | ------------------------------- | ------------ | ------------------------------------------ |
+| API key | `x-api-key: <key>`              | gateway      | Is this an allowed client app?             |
+| JWT     | `Authorization: Bearer <token>` | each service | Which user is this and what is their role? |
+
+| Role            | How it is created                                               | Can                                 |
+| --------------- | --------------------------------------------------------------- | ----------------------------------- |
+| `admin`         | bootstrap admin from `.env` on first start, or by another admin | everything, incl. user management   |
+| `fleet_manager` | by an admin                                                     | manage vehicles, receive SMS alerts |
+| `driver`        | public `POST /api/users/register`, or by an admin               | own profile, submit telemetry       |
+
+**Bootstrap admin:** when `user-service` starts and no admin exists, it creates one from `ADMIN_NAME`,
+`ADMIN_EMAIL`, `ADMIN_PASSWORD` and `ADMIN_PHONE`. Set these in `.env` before the first start.
+
+```bash
+# Log in and call a protected endpoint
+TOKEN=$(curl -s -X POST http://localhost:3000/api/users/login \
+  -H "x-api-key: fleet-dev-key-123" -H "Content-Type: application/json" \
+  -d '{"email":"admin@fleet.dev","password":"Admin@12345"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
+
+curl http://localhost:3000/api/users/me -H "x-api-key: fleet-dev-key-123" -H "Authorization: Bearer $TOKEN"
+```
+
+Passwords are hashed with bcrypt; tokens are HS256 JWTs signed with `JWT_SECRET` and expire after `JWT_EXPIRES_IN` (default 1h).
 
 ## Tests
 

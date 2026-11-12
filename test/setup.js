@@ -10,10 +10,15 @@ exports.mochaHooks = {
       throw new Error('Tests must run against the local mongo-test container, not Atlas');
     }
     await connectDB(uri);
+    // Build indexes (e.g. unique email) before any test relies on them
+    await Promise.all(Object.values(mongoose.models).map((model) => model.init()));
   },
 
+  // Empty every collection but keep the indexes, so each test starts clean
   async afterEach() {
-    await mongoose.connection.db.dropDatabase();
+    await Promise.all(
+      Object.values(mongoose.connection.collections).map((collection) => collection.deleteMany({})),
+    );
   },
 
   async afterAll() {

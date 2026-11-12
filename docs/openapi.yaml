@@ -8,8 +8,17 @@ info:
     ### How to call the API
     1. Every `/api/*` request needs an **API key** in the `x-api-key` header.
        Click **Authorize** above and enter your key (local default: `fleet-dev-key-123`).
-    2. Endpoints marked with a lock and **BearerAuth** also need a JWT (`Authorization: Bearer <token>`),
-       obtained from `POST /api/users/login`.
+    2. Endpoints that also list **BearerAuth** need a JWT (`Authorization: Bearer <token>`),
+       obtained from `POST /api/users/login`. In **Authorize**, paste the token (without "Bearer").
+
+    ### Roles
+    | Role | Can |
+    |---|---|
+    | `admin` | everything, including user management |
+    | `fleet_manager` | manage vehicles, receive SMS alerts |
+    | `driver` | own profile, submit telemetry |
+
+    Public sign-up (`/api/users/register`) always creates a `driver`; only an admin can assign other roles.
 
     ### Gateway routing
     | Gateway route | Target service |
@@ -38,6 +47,8 @@ tags:
     description: Public status endpoints (no API key)
   - name: Gateway
     description: Requests routed through the gateway to backend services
+  - name: Users
+    description: Registration, login (JWT), profile and admin user management
 paths:
   /health:
     get:
@@ -152,7 +163,298 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
 
+  /api/users/register:
+    post:
+      tags: [Users]
+      summary: Register as a driver
+      description: Public sign-up. The account always gets the `driver` role; sending `role` is rejected.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              name: Ravi Kumar
+              email: ravi@fleet.dev
+              password: Driver@123
+              phone: '+919876543210'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                user:
+                  id: 6730f0c2a1b2c3d4e5f60718
+                  name: Ravi Kumar
+                  email: ravi@fleet.dev
+                  role: driver
+                  phone: '+919876543210'
+                  isActive: true
+                  createdAt: '2026-11-13T09:00:00.000Z'
+                  updatedAt: '2026-11-13T09:00:00.000Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/EmailTaken'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/users/login:
+    post:
+      tags: [Users]
+      summary: Log in and receive a JWT
+      description: The email is case-insensitive. Wrong email and wrong password return the same 401.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: ravi@fleet.dev
+              password: Driver@123
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZHJpdmVyIiwiZW1haWwiOiJyYXZpQGZsZWV0LmRldiIsInN1YiI6IjY3MzBmMGMyYTFiMmMzZDRlNWY2MDcxOCJ9.signature
+                tokenType: Bearer
+                expiresIn: 3600
+                user:
+                  id: 6730f0c2a1b2c3d4e5f60718
+                  name: Ravi Kumar
+                  email: ravi@fleet.dev
+                  role: driver
+                  phone: '+919876543210'
+                  isActive: true
+                  lastLoginAt: '2026-11-13T09:15:00.000Z'
+                  createdAt: '2026-11-13T09:00:00.000Z'
+                  updatedAt: '2026-11-13T09:15:00.000Z'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: API key problem, or wrong email/password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  summary: Wrong email or password
+                  value:
+                    error:
+                      code: INVALID_CREDENTIALS
+                      message: Email or password is incorrect
+                missingApiKey:
+                  summary: No x-api-key header
+                  value:
+                    error:
+                      code: MISSING_API_KEY
+                      message: An API key is required in the x-api-key header
+        '403':
+          description: Account disabled by an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: ACCOUNT_DISABLED
+                  message: This account has been disabled
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Current user's profile
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      responses:
+        '200':
+          description: The logged-in user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users (admin)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/Role'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of users, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Users]
+      summary: Create a user with any role (admin)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              name: Priya Sharma
+              email: priya@fleet.dev
+              password: Manager@123
+              phone: '+919812345678'
+              role: fleet_manager
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/EmailTaken'
+
+  /api/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      summary: Get a user (admin)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      responses:
+        '200':
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+    patch:
+      tags: [Users]
+      summary: Update a user's name, phone, role or active status (admin)
+      description: An admin cannot change their own `role` or `isActive` (prevents locking yourself out).
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              role: fleet_manager
+              phone: '+919811111111'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          description: Not an admin, or trying to change own role/status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    error:
+                      code: FORBIDDEN
+                      message: 'This action requires one of these roles: admin'
+                self:
+                  value:
+                    error:
+                      code: CANNOT_MODIFY_SELF
+                      message: You cannot change your own role or status
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
 components:
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: User id (24-character hex)
+      schema:
+        type: string
+        example: 6730f0c2a1b2c3d4e5f60718
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
@@ -255,6 +557,79 @@ components:
               details:
                 service: vehicle-service
 
+    ValidationError:
+      description: Request body, query or path parameter is invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request validation failed
+              details:
+                - location: body
+                  field: password
+                  message: password must contain at least one number
+                - location: body
+                  field: phone
+                  message: phone must be in international format, e.g. +919876543210
+    TokenError:
+      description: API key problem, or JWT missing / invalid / expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missing:
+              summary: No Bearer token
+              value:
+                error:
+                  code: TOKEN_MISSING
+                  message: A Bearer token is required in the Authorization header
+            invalid:
+              summary: Bad signature / malformed
+              value:
+                error:
+                  code: TOKEN_INVALID
+                  message: The token is invalid
+            expired:
+              summary: Token expired
+              value:
+                error:
+                  code: TOKEN_EXPIRED
+                  message: The token has expired, please log in again
+    Forbidden:
+      description: Logged in, but the role is not allowed to do this
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: 'This action requires one of these roles: admin'
+    UserNotFound:
+      description: No user with this id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: USER_NOT_FOUND
+              message: User not found
+    EmailTaken:
+      description: Email already registered
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: EMAIL_TAKEN
+              message: An account with this email already exists
+
   schemas:
     Health:
       type: object
@@ -300,6 +675,125 @@ components:
         timestamp:
           type: string
           format: date-time
+    Role:
+      type: string
+      enum: [admin, fleet_manager, driver]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 6730f0c2a1b2c3d4e5f60718
+        name:
+          type: string
+          example: Ravi Kumar
+        email:
+          type: string
+          format: email
+          example: ravi@fleet.dev
+        role:
+          $ref: '#/components/schemas/Role'
+        phone:
+          type: string
+          example: '+919876543210'
+        isActive:
+          type: boolean
+        lastLoginAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UserResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    UserList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 3
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          description: At least one letter and one number
+        phone:
+          type: string
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: International (E.164) format, used for SMS alerts
+    CreateUserRequest:
+      allOf:
+        - $ref: '#/components/schemas/RegisterRequest'
+        - type: object
+          required: [role]
+          properties:
+            role:
+              $ref: '#/components/schemas/Role'
+    UpdateUserRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        isActive:
+          type: boolean
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: 'JWT — send as `Authorization: Bearer <token>`'
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Seconds until the token expires
+          example: 3600
+        user:
+          $ref: '#/components/schemas/User'
     Error:
       type: object
       properties:

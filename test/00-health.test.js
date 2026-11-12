@@ -27,12 +27,12 @@ describe('Common error handling', () => {
   const app = require('../services/user/app');
 
   it('returns 404 with the standard error shape for an unknown route', async () => {
-    const res = await request(app).get('/does-not-exist');
+    const res = await request(app).get('/does/not-exist');
 
     expect(res.status).to.equal(404);
     expect(res.body.error).to.deep.equal({
       code: 'NOT_FOUND',
-      message: 'Route GET /does-not-exist not found',
+      message: 'Route GET /does/not-exist not found',
     });
   });
 

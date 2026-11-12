@@ -21,6 +21,19 @@ const schema = Joi.object({
   RATE_LIMIT_MAX: Joi.number().integer().min(1).default(100),
   PROXY_TIMEOUT_MS: Joi.number().integer().min(100).default(10000),
 
+  // Authentication
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_EXPIRES_IN: Joi.string()
+    .pattern(/^\d+[smhd]?$/, 'duration like 3600, 15m, 1h or 7d')
+    .default('1h'),
+  BCRYPT_ROUNDS: Joi.number().integer().min(4).max(15).default(10),
+
+  // Bootstrap admin, created by user-service on first start if no admin exists
+  ADMIN_NAME: Joi.string().default('Fleet Admin'),
+  ADMIN_EMAIL: Joi.string().email(),
+  ADMIN_PASSWORD: Joi.string().min(8),
+  ADMIN_PHONE: Joi.string().pattern(/^\+[1-9]\d{7,14}$/, 'E.164 phone number'),
+
   // Service locations (Docker Compose service names resolve as hostnames)
   USER_SERVICE_URL: serviceUrl('http://user-service:3001'),
   VEHICLE_SERVICE_URL: serviceUrl('http://vehicle-service:3002'),
@@ -49,6 +62,19 @@ module.exports = {
       .filter(Boolean),
     rateLimit: { windowMs: env.RATE_LIMIT_WINDOW_MS, max: env.RATE_LIMIT_MAX },
     proxyTimeoutMs: env.PROXY_TIMEOUT_MS,
+  },
+
+  jwt: {
+    secret: env.JWT_SECRET,
+    expiresIn: env.JWT_EXPIRES_IN,
+  },
+  bcryptRounds: env.BCRYPT_ROUNDS,
+
+  admin: {
+    name: env.ADMIN_NAME,
+    email: env.ADMIN_EMAIL,
+    password: env.ADMIN_PASSWORD,
+    phone: env.ADMIN_PHONE,
   },
 
   services: {
