@@ -1,8 +1,8 @@
 const service = require('./service');
 
 async function create(req, res) {
-  const vehicle = await service.createVehicle(req.body, req.user);
-  res.status(201).json({ vehicle });
+  // { vehicle, geocoding? } — geocoding is only present when an address was looked up
+  res.status(201).json(await service.createVehicle(req.body, req.user));
 }
 
 async function list(req, res) {
@@ -14,7 +14,7 @@ async function getById(req, res) {
 }
 
 async function update(req, res) {
-  res.json({ vehicle: await service.updateVehicle(req.params.id, req.body) });
+  res.json(await service.updateVehicle(req.params.id, req.body));
 }
 
 async function changeStatus(req, res) {

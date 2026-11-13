@@ -77,7 +77,7 @@ async function recordTelemetry(
   // The condition is part of the update, so it's atomic; `$not: { $gte }` also matches "never seen".
   const { modifiedCount } = await Vehicle.updateOne(
     { _id: vehicle._id, lastSeenAt: { $not: { $gte: recordedAt } } },
-    { $set: { location: point, lastSeenAt: recordedAt } },
+    { $set: { location: point, locationSource: 'telemetry', lastSeenAt: recordedAt } },
   );
 
   const alert = CRITICAL_EVENTS.includes(telemetry.event)

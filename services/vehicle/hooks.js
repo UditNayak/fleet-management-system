@@ -1,5 +1,6 @@
 const { createLogger } = require('../../shared/logger');
 const { notify } = require('../../shared/clients/notificationClient');
+const mapsClient = require('../../shared/clients/mapsClient');
 
 const logger = createLogger('vehicle-service');
 
@@ -17,6 +18,11 @@ const hooks = {
       },
       change: { from: change.from, to: change.to, ...(change.reason && { reason: change.reason }) },
     });
+  },
+
+  // Asks maps-service for the coordinates of an address; null if the address isn't found
+  async geocodeAddress(address) {
+    return mapsClient.geocode(address);
   },
 };
 

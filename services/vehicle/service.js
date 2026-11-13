@@ -22,14 +22,42 @@ async function ensureDriver(driverId) {
   }
 }
 
-async function createVehicle({ location, ...fields }, actor) {
-  await ensureDriver(fields.assignedDriver);
+/**
+ * Looks up the coordinates of an address via maps-service.
+ * Never throws: the vehicle is saved either way, and `geocoding.status` tells the client what happened.
+ */
+async function geocodeAddress(address) {
   try {
-    return await Vehicle.create({
+    const result = await hooks.geocodeAddress(address);
+    if (!result) return { geocoding: { status: 'not_found' } };
+    return {
+      location: { lat: result.lat, lng: result.lng },
+      geocoding: { status: 'ok', displayName: result.displayName },
+    };
+  } catch (err) {
+    logger.warn(`Geocoding "${address}" failed: ${err.message}`);
+    return { geocoding: { status: 'unavailable' } };
+  }
+}
+
+// Sent coordinates win; otherwise an address is geocoded ("coordinates from vehicle addresses")
+async function resolveLocation(address, location) {
+  if (location) return { location, source: 'manual' };
+  if (!address) return {};
+  const { location: found, geocoding } = await geocodeAddress(address);
+  return { location: found, source: found && 'geocoded', geocoding };
+}
+
+async function createVehicle({ location: sentLocation, ...fields }, actor) {
+  await ensureDriver(fields.assignedDriver);
+  const { location, source, geocoding } = await resolveLocation(fields.address, sentLocation);
+  try {
+    const vehicle = await Vehicle.create({
       ...fields,
-      ...(location && { location: toPoint(location) }),
+      ...(location && { location: toPoint(location), locationSource: source }),
       createdBy: actor.id,
     });
+    return { vehicle, geocoding };
   } catch (err) {
     if (err.code === 11000) {
       throw new AppError(
@@ -88,13 +116,29 @@ async function updateVehicle(id, changes) {
     else $set[field] = field === 'location' ? toPoint(value) : value;
   }
 
+  // Keep locationSource in step with the location
+  let geocoding;
+  if (changes.location) {
+    $set.locationSource = 'manual';
+  } else if (changes.location === null) {
+    $unset.locationSource = '';
+  } else if (changes.address) {
+    // New address without coordinates → look them up (on failure the old location stays)
+    const found = await geocodeAddress(changes.address);
+    geocoding = found.geocoding;
+    if (found.location) {
+      $set.location = toPoint(found.location);
+      $set.locationSource = 'geocoded';
+    }
+  }
+
   const vehicle = await Vehicle.findByIdAndUpdate(
     id,
     { $set, $unset },
     { new: true, runValidators: true },
   );
   if (!vehicle) throw vehicleNotFound();
-  return vehicle;
+  return { vehicle, geocoding };
 }
 
 async function changeStatus(id, { status, reason }, actor) {

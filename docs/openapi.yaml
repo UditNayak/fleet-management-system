@@ -43,6 +43,14 @@ info:
     fleet managers, at most **once per vehicle and event every 5 minutes** (cooldown). Drivers can only report for
     and read their own (assigned) vehicle.
 
+    ### Geolocation (OpenStreetMap)
+    Addresses are turned into coordinates with **OpenStreetMap Nominatim** (free, no API key). Following its usage
+    policy, maps-service identifies itself with a User-Agent, sends **at most 1 request per second** and **caches**
+    answers for 24 h (`cached: true`). `GET /api/maps/nearby` finds vehicles **within X km** of a point or an address,
+    nearest first, with the distance (MongoDB `$geoNear` on a 2dsphere index). A vehicle registered with only an
+    `address` gets its coordinates looked up automatically (`locationSource: geocoded`); if that fails the vehicle is
+    still saved and `geocoding.status` says why. All maps endpoints are open to **every role**.
+
     ### Gateway routing
     | Gateway route | Target service |
     |---|---|
@@ -78,6 +86,8 @@ tags:
     description: SMS delivery log (sent / failed) for admins and fleet managers
   - name: Telemetry
     description: GPS / sensor readings from vehicles, history and critical-event alerts
+  - name: Maps
+    description: Geocoding with OpenStreetMap Nominatim and nearby-vehicle search (any role)
 paths:
   /health:
     get:
@@ -524,6 +534,11 @@ paths:
         The registration number is normalised (`ka-01 ab 1234` → `KA01AB1234`) and must be unique.
         New vehicles start with status `idle`; `status` is not accepted here, so use `PATCH /api/vehicles/{id}/status`.
         `assignedDriver` must be an existing, active user with the `driver` role.
+
+        **Address geocoding:** send an `address` without `location` and the coordinates are looked up with
+        OpenStreetMap (`locationSource: geocoded`, plus a `geocoding` object in the response). If the address is not
+        found or the geocoder is down, the vehicle is still registered without a location
+        (`geocoding.status: not_found | unavailable`). Sent coordinates are used as they are (`locationSource: manual`).
       security:
         - ApiKeyAuth: []
           BearerAuth: []
@@ -533,15 +548,25 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateVehicleRequest'
-            example:
-              registrationNumber: KA 01 AB 1234
-              model: Tata Ace Gold
-              type: truck
-              year: 2023
-              address: MG Road, Bengaluru
-              location:
-                lat: 12.9756
-                lng: 77.605
+            examples:
+              addressOnly:
+                summary: Address only (coordinates are geocoded)
+                value:
+                  registrationNumber: KA 01 GE 2026
+                  model: Mahindra Supro
+                  type: van
+                  address: Indiranagar, Bengaluru
+              withCoordinates:
+                summary: Address and coordinates (used as sent)
+                value:
+                  registrationNumber: KA 01 AB 1234
+                  model: Tata Ace Gold
+                  type: truck
+                  year: 2023
+                  address: MG Road, Bengaluru
+                  location:
+                    lat: 12.9756
+                    lng: 77.605
       responses:
         '201':
           description: Vehicle registered
@@ -586,6 +611,7 @@ paths:
       description: |
         `registrationNumber` and `status` cannot be changed here. Send `null` for
         `address`, `location` or `assignedDriver` to clear it (e.g. unassign the driver).
+        A new `address` without `location` is geocoded again (if that fails, the old location stays).
       security:
         - ApiKeyAuth: []
           BearerAuth: []
@@ -604,6 +630,10 @@ paths:
                   location:
                     lat: 12.9352
                     lng: 77.6245
+              newAddress:
+                summary: Move to a new address (geocoded)
+                value:
+                  address: Whitefield, Bengaluru
               unassign:
                 summary: Unassign the driver
                 value:
@@ -983,6 +1013,176 @@ paths:
         '403':
           $ref: '#/components/responses/NotificationForbidden'
 
+  /api/maps/geocode:
+    get:
+      tags: [Maps]
+      summary: Address → coordinates (OpenStreetMap Nominatim)
+      description: Results are limited to India and cached for 24 hours (`cached`).
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 200
+            example: MG Road, Bengaluru
+      responses:
+        '200':
+          description: Coordinates of the best match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeocodeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '404':
+          $ref: '#/components/responses/AddressNotFound'
+        '503':
+          $ref: '#/components/responses/GeocoderUnavailable'
+
+  /api/maps/reverse:
+    get:
+      tags: [Maps]
+      summary: Coordinates → street address (OpenStreetMap Nominatim)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+            example: 12.9756
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+            example: 77.6066
+      responses:
+        '200':
+          description: The address at (or nearest to) these coordinates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReverseGeocodeResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '404':
+          $ref: '#/components/responses/AddressNotFound'
+        '503':
+          $ref: '#/components/responses/GeocoderUnavailable'
+
+  /api/maps/nearby:
+    get:
+      tags: [Maps]
+      summary: Vehicles within X km of a point or an address, nearest first
+      description: |
+        Give the centre either as `lat` + `lng`, **or** as an `address` (geocoded first) — not both.
+        Vehicles without a location are never included.
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+            example: 12.9756
+        - name: lng
+          in: query
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+            example: 77.605
+        - name: address
+          in: query
+          description: Instead of lat/lng
+          schema:
+            type: string
+            example: Koramangala, Bengaluru
+        - name: radiusKm
+          in: query
+          schema:
+            type: number
+            minimum: 0.1
+            maximum: 100
+            default: 5
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Vehicles inside the radius with their distance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearbyResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '404':
+          $ref: '#/components/responses/AddressNotFound'
+        '503':
+          $ref: '#/components/responses/GeocoderUnavailable'
+
+  /api/maps/vehicles:
+    get:
+      tags: [Maps]
+      summary: Positions of all vehicles that have a location (for a map)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+      responses:
+        '200':
+          description: Vehicle positions, sorted by registration number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapVehicleList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+
 components:
   parameters:
     UserId:
@@ -1270,6 +1470,26 @@ components:
             error:
               code: NOT_ASSIGNED_DRIVER
               message: Drivers can only access their assigned vehicle
+    AddressNotFound:
+      description: OpenStreetMap has no match for this address / these coordinates
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: ADDRESS_NOT_FOUND
+              message: No location found for "Xyzzy Qwertyville 99999"
+    GeocoderUnavailable:
+      description: Nominatim is down, too slow (timeout) or rate-limiting us
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: GEOCODER_UNAVAILABLE
+              message: The geocoding service is unavailable, try again later
 
   schemas:
     Health:
@@ -1482,6 +1702,11 @@ components:
             - $ref: '#/components/schemas/LatLng'
           nullable: true
           description: Stored as a GeoJSON point (2dsphere index) and returned as lat/lng
+        locationSource:
+          type: string
+          enum: [manual, geocoded, telemetry]
+          nullable: true
+          description: Where the location came from — sent by a user, looked up from `address`, or reported by GPS
         lastSeenAt:
           type: string
           format: date-time
@@ -1531,6 +1756,19 @@ components:
       properties:
         vehicle:
           $ref: '#/components/schemas/Vehicle'
+        geocoding:
+          $ref: '#/components/schemas/GeocodingStatus'
+    GeocodingStatus:
+      type: object
+      description: Only present when an address was geocoded (address sent without `location`)
+      properties:
+        status:
+          type: string
+          enum: [ok, not_found, unavailable]
+        displayName:
+          type: string
+          description: Full place name from OpenStreetMap (only when `ok`)
+          example: Indiranagar, Bengaluru East City Corporation, Bengaluru, Karnataka, India
     VehicleDetailResponse:
       type: object
       properties:
@@ -1860,6 +2098,128 @@ components:
           type: integer
         total:
           type: integer
+    GeocodeResult:
+      type: object
+      properties:
+        query:
+          type: string
+          example: MG Road, Bengaluru
+        lat:
+          type: number
+          example: 12.9755264
+        lng:
+          type: number
+          example: 77.6067902
+        displayName:
+          type: string
+          example: Mahatma Gandhi Road, Ashokanagar, Bengaluru, Karnataka, 560001, India
+        cached:
+          type: boolean
+          description: true when answered from the 24-hour cache (no call to Nominatim)
+        source:
+          type: string
+          example: OpenStreetMap Nominatim
+    ReverseGeocodeResult:
+      type: object
+      properties:
+        lat:
+          type: number
+          example: 12.9756
+        lng:
+          type: number
+          example: 77.6066
+        displayName:
+          type: string
+          example: Mahatma Gandhi Road, Ashok Nagar, Bengaluru, Karnataka, 560001, India
+        address:
+          type: object
+          description: Address parts as returned by Nominatim (road, suburb, city, postcode, …)
+          additionalProperties:
+            type: string
+          example:
+            road: Mahatma Gandhi Road
+            suburb: Ashokanagar
+            city: Bengaluru
+            state: Karnataka
+            postcode: '560001'
+            country: India
+        cached:
+          type: boolean
+        source:
+          type: string
+          example: OpenStreetMap Nominatim
+    MapVehicle:
+      type: object
+      properties:
+        id:
+          type: string
+        registrationNumber:
+          type: string
+          example: KA01DM2029
+        model:
+          type: string
+        type:
+          $ref: '#/components/schemas/VehicleType'
+        status:
+          $ref: '#/components/schemas/VehicleStatus'
+        address:
+          type: string
+          nullable: true
+        location:
+          $ref: '#/components/schemas/LatLng'
+        locationSource:
+          type: string
+          enum: [manual, geocoded, telemetry]
+          nullable: true
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+        assignedDriver:
+          type: string
+          nullable: true
+    NearbyResult:
+      type: object
+      properties:
+        center:
+          type: object
+          properties:
+            lat:
+              type: number
+              example: 12.9756
+            lng:
+              type: number
+              example: 77.605
+            displayName:
+              type: string
+              description: Only when the centre was given as an address
+        radiusKm:
+          type: number
+          example: 5
+        count:
+          type: integer
+          example: 4
+        vehicles:
+          type: array
+          description: Nearest first
+          items:
+            allOf:
+              - $ref: '#/components/schemas/MapVehicle'
+              - type: object
+                properties:
+                  distanceKm:
+                    type: number
+                    example: 1.31
+    MapVehicleList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 9
+        vehicles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MapVehicle'
     Error:
       type: object
       properties:

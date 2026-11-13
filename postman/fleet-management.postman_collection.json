@@ -2769,6 +2769,465 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Maps",
+      "description": "OpenStreetMap geocoding and nearby-vehicle search (flow 6, deliverable 5a). Self-contained (collection auto-setup); the nearby searches use the Bangalore demo vehicles from `docker compose --profile tools run --rm seed` (run it once). Calls the real Nominatim: maps-service sends at most 1 request/second and caches answers (`cached: true` on a repeat).",
+      "item": [
+        {
+          "name": "01 · Geocode an address (OpenStreetMap)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/geocode?address=MG Road, Bengaluru",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "geocode"],
+              "query": [
+                {
+                  "key": "address",
+                  "value": "MG Road, Bengaluru"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Coordinates are in Bangalore', () => { pm.expect(res.lat).to.be.within(12.8, 13.2); pm.expect(res.lng).to.be.within(77.4, 77.8); });",
+                  "pm.test('Source is OpenStreetMap', () => pm.expect(res.source).to.eql('OpenStreetMap Nominatim'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 · Vehicles within 5 km of MG Road (coordinates)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/nearby?lat=12.9756&lng=77.6050&radiusKm=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "nearby"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "12.9756"
+                },
+                {
+                  "key": "lng",
+                  "value": "77.6050"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Finds at least 4 vehicle(s)', () => pm.expect(res.count).to.be.at.least(4));",
+                  "pm.test('All inside the radius', () => res.vehicles.forEach((v) => pm.expect(v.distanceKm).to.be.at.most(res.radiusKm)));",
+                  "pm.test('Nearest first', () => res.vehicles.forEach((v, i) => i && pm.expect(v.distanceKm).to.be.at.least(res.vehicles[i - 1].distanceKm)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 · Vehicles within 4 km of an address",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/nearby?address=Koramangala, Bengaluru&radiusKm=4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "nearby"],
+              "query": [
+                {
+                  "key": "address",
+                  "value": "Koramangala, Bengaluru"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "4"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Finds at least 2 vehicle(s)', () => pm.expect(res.count).to.be.at.least(2));",
+                  "pm.test('All inside the radius', () => res.vehicles.forEach((v) => pm.expect(v.distanceKm).to.be.at.most(res.radiusKm)));",
+                  "pm.test('Nearest first', () => res.vehicles.forEach((v, i) => i && pm.expect(v.distanceKm).to.be.at.least(res.vehicles[i - 1].distanceKm)));",
+                  "pm.test('Centre was geocoded', () => pm.expect(res.center.displayName).to.include('Koramangala'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 · Smaller radius (1 km) → fewer vehicles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/nearby?lat=12.9756&lng=77.6050&radiusKm=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "nearby"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "12.9756"
+                },
+                {
+                  "key": "lng",
+                  "value": "77.6050"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Finds at least 1 vehicle(s)', () => pm.expect(res.count).to.be.at.least(1));",
+                  "pm.test('All inside the radius', () => res.vehicles.forEach((v) => pm.expect(v.distanceKm).to.be.at.most(res.radiusKm)));",
+                  "pm.test('Nearest first', () => res.vehicles.forEach((v, i) => i && pm.expect(v.distanceKm).to.be.at.least(res.vehicles[i - 1].distanceKm)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 · Register vehicle with address only → geocoded",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "description": "No coordinates are sent: vehicle-service asks maps-service, which asks OpenStreetMap. Re-runnable: an earlier KA01GE2026 is deleted first.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"KA01GE2026\",\n  \"model\": \"Mahindra Supro\",\n  \"type\": \"van\",\n  \"address\": \"Indiranagar, Bengaluru\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Delete KA01GE2026 from an earlier run so this request can be sent again",
+                  "const base = pm.variables.replaceIn('{{baseUrl}}');",
+                  "const header = { 'x-api-key': pm.variables.replaceIn('{{apiKey}}'), Authorization: 'Bearer ' + pm.collectionVariables.get('adminToken') };",
+                  "pm.sendRequest({ url: base + '/api/vehicles?search=KA01GE2026', method: 'GET', header }, (err, res) => {",
+                  "  const existing = !err && res.code === 200 ? res.json().data[0] : null;",
+                  "  if (existing) pm.sendRequest({ url: base + '/api/vehicles/' + existing.id, method: 'DELETE', header }, () => {});",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.test('Geocoding succeeded', () => pm.expect(res.geocoding.status).to.eql('ok'));",
+                  "pm.test('Location came from the address', () => pm.expect(res.vehicle.locationSource).to.eql('geocoded'));",
+                  "pm.test('Coordinates are in Bangalore', () => { pm.expect(res.vehicle.location.lat).to.be.within(12.8, 13.2); pm.expect(res.vehicle.location.lng).to.be.within(77.4, 77.8); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 · Reverse geocode (coordinates → address)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/reverse?lat=12.9756&lng=77.6066",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "reverse"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "12.9756"
+                },
+                {
+                  "key": "lng",
+                  "value": "77.6066"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Address is in Bengaluru', () => pm.expect(pm.response.json().displayName).to.include('Bengaluru'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 · Unknown address → 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/geocode?address=Xyzzy Qwertyville 99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "geocode"],
+              "query": [
+                {
+                  "key": "address",
+                  "value": "Xyzzy Qwertyville 99999"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error code is ADDRESS_NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('ADDRESS_NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehicle positions for the map",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "vehicles"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Every vehicle has a location', () => pm.response.json().vehicles.forEach((v) => pm.expect(v.location).to.have.keys('lat', 'lng')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nearby as driver (every role may search)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{demoDriverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/nearby?lat=12.9756&lng=77.6050&radiusKm=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "nearby"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "12.9756"
+                },
+                {
+                  "key": "lng",
+                  "value": "77.6050"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Both coordinates and address → 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/nearby?lat=12.9756&lng=77.6050&address=MG Road",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "nearby"],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "12.9756"
+                },
+                {
+                  "key": "lng",
+                  "value": "77.6050"
+                },
+                {
+                  "key": "address",
+                  "value": "MG Road"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Internal geocode via gateway → 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/maps/internal/geocode?address=MG Road",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "maps", "internal", "geocode"],
+              "query": [
+                {
+                  "key": "address",
+                  "value": "MG Road"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404 (internal routes are never exposed)', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [

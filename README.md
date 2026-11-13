@@ -79,7 +79,7 @@ Set `adminEmail` / `adminPassword` to your admin's credentials (defaults match `
 data doesn't exist yet, it logs in and creates (once) a demo fleet manager, a demo driver, a fleet manager with an
 unreachable phone (to show failed SMS) and two demo vehicles (`KA01DM2026`, assigned to the demo driver, and
 `KA01DM2027`). So any request, or any folder, can be run on its own; the numbered requests in
-**Notifications** and **Telemetry** are a ready-made demo.
+**Notifications**, **Telemetry** and **Maps** are a ready-made demo (Maps uses the seeded vehicles, see below).
 
 The whole collection can also be run from the command line with Newman (in a container, nothing installed locally):
 
@@ -183,9 +183,38 @@ POST /api/telemetry { vehicleId, location: {lat,lng}, speed, heading, batteryLev
 - `GET /api/telemetry/events`: critical events across the fleet (admin, fleet manager).
 - The reading is stored even if the SMS can't be sent; the alert is retried with the next critical reading.
 
+## Maps & Geolocation
+
+`maps-service` uses **OpenStreetMap Nominatim** (free, no API key) to turn addresses into coordinates and back,
+and MongoDB `$geoNear` (2dsphere index) to find vehicles near a place. Every role may use it.
+
+| Endpoint                                              | Result                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------- |
+| `GET /api/maps/geocode?address=MG Road, Bengaluru`    | `{ lat, lng, displayName }`                                |
+| `GET /api/maps/reverse?lat=12.9756&lng=77.6066`       | street address                                             |
+| `GET /api/maps/nearby?lat=&lng=&radiusKm=5`           | vehicles within 5 km, nearest first, with `distanceKm`     |
+| `GET /api/maps/nearby?address=Koramangala&radiusKm=4` | same, around an address (geocoded first)                   |
+| `GET /api/maps/vehicles`                              | positions of all vehicles that have a location (for a map) |
+
+- **Nominatim usage policy:** requests identify the app (`NOMINATIM_USER_AGENT`), are spaced at least 1 second
+  apart, and answers are cached for 24 h. A timeout or network error is retried once; Nominatim down → `503
+GEOCODER_UNAVAILABLE`, unknown address → `404 ADDRESS_NOT_FOUND`.
+- **Vehicle addresses are geocoded:** register (or update) a vehicle with an `address` and no `location`, and
+  vehicle-service asks maps-service for the coordinates (`locationSource: geocoded`). If that fails the vehicle is
+  still saved and the response says why (`geocoding.status: not_found | unavailable`).
+- `locationSource` shows where a vehicle's position came from: `manual`, `geocoded` or `telemetry` (GPS).
+
+**Demo data:** add 9 vehicles at real Bangalore places (0–16 km from MG Road). Safe to re-run: it resets them and
+never touches other data.
+
+```bash
+docker compose --profile tools run --rm seed
+```
+
 ## Tests
 
-Tests run in Docker against a throw-away MongoDB container (never against Atlas):
+Tests run in Docker against a throw-away MongoDB container (never against Atlas) and never call the real
+Nominatim (the geocoder is stubbed with Sinon):
 
 ```bash
 docker compose --profile test run --rm test
@@ -199,6 +228,7 @@ docker compose --profile test down          # stop the test database afterwards
 | `test/03-telemetry.test.js`           | 3. Location update & telemetry storage     |
 | `test/04-status-notification.test.js` | 4. Status update & notification triggering |
 | `test/05-rbac.test.js`                | 5. Role-based access control               |
+| `test/06-nearby-geocoding.test.js`    | 6. Nearby vehicle search & geocoding       |
 | `test/07-gateway.test.js`             | 7. API key verification & rate limiting    |
 
 ## Lint
@@ -222,7 +252,8 @@ docker compose --profile test --profile tools down -v --rmi all
 
 ```
 services/   gateway + one folder per microservice (app.js builds the app, index.js starts it)
-shared/     config, logger, DB connection, app factory, error handling
+shared/     config, logger, DB connection, app factory, error handling, models, service clients
+scripts/    seed script (Bangalore demo vehicles)
 test/       Mocha/Chai test suite
 docs/       OpenAPI (Swagger) specification, MongoDB Atlas setup guide
 postman/    Postman collection

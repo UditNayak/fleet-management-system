@@ -96,6 +96,11 @@ services:
       # the notification tests start notification-service inside the test process on this port
       NOTIFICATION_SERVICE_URL: http://127.0.0.1:3905
       NOTIFY_TIMEOUT_MS: 1000
+      # the maps tests start maps-service on this port; Nominatim points at a closed port so a
+      # test can never reach the real API (they stub the geocoder instead)
+      MAPS_SERVICE_URL: http://127.0.0.1:3904
+      NOMINATIM_URL: http://127.0.0.1:9
+      GEOCODER_TIMEOUT_MS: 1000
     depends_on:
       mongo-test:
         condition: service_healthy
@@ -105,3 +110,10 @@ services:
     <<: *node
     profiles: [tools]
     command: npm run lint
+
+  # docker compose --profile tools run --rm seed  → Bangalore demo vehicles in the app DB (idempotent)
+  seed:
+    <<: *node
+    profiles: [tools]
+    env_file: .env
+    command: node scripts/seed.js

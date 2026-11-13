@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const VEHICLE_TYPES = ['truck', 'van', 'car', 'bike', 'bus'];
 const VEHICLE_STATUSES = ['active', 'idle', 'maintenance', 'inactive'];
+// Where the current location came from: sent by a user, looked up from the address, or reported by GPS
+const LOCATION_SOURCES = ['manual', 'geocoded', 'telemetry'];
 
 const { ObjectId } = mongoose.Schema.Types;
 
@@ -34,6 +36,7 @@ const vehicleSchema = new mongoose.Schema(
     status: { type: String, enum: VEHICLE_STATUSES, default: 'idle', index: true },
     address: { type: String, trim: true },
     location: { type: pointSchema },
+    locationSource: { type: String, enum: LOCATION_SOURCES },
     lastSeenAt: { type: Date },
     assignedDriver: { type: ObjectId, ref: 'User', index: true },
     statusHistory: { type: [statusChangeSchema] }, // excluded from list queries to keep them small
@@ -47,6 +50,7 @@ const vehicleSchema = new mongoose.Schema(
         id: _id.toString(),
         ...rest,
         location: toLatLng(location),
+        locationSource: rest.locationSource ?? null,
         lastSeenAt: rest.lastSeenAt ?? null,
         assignedDriver: rest.assignedDriver ?? null,
         ...(statusHistory && { statusHistory }),
@@ -55,7 +59,7 @@ const vehicleSchema = new mongoose.Schema(
   },
 );
 
-// Enables $near / $geoWithin queries (Phase 7); documents without a location are simply not indexed
+// Enables $geoNear / $near queries (maps-service); documents without a location are simply not indexed
 vehicleSchema.index({ location: '2dsphere' });
 
 function toPoint({ lat, lng }) {
@@ -73,5 +77,6 @@ const Vehicle = mongoose.models.Vehicle || mongoose.model('Vehicle', vehicleSche
 module.exports = Vehicle;
 module.exports.VEHICLE_TYPES = VEHICLE_TYPES;
 module.exports.VEHICLE_STATUSES = VEHICLE_STATUSES;
+module.exports.LOCATION_SOURCES = LOCATION_SOURCES;
 module.exports.toPoint = toPoint;
 module.exports.toLatLng = toLatLng;

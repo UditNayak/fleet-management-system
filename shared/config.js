@@ -53,6 +53,13 @@ const schema = Joi.object({
     .integer()
     .min(0)
     .default(5 * 60 * 1000),
+
+  // Geocoding with OpenStreetMap Nominatim (free, no API key; usage policy: identify the app, max 1 req/s)
+  NOMINATIM_URL: serviceUrl('https://nominatim.openstreetmap.org'),
+  NOMINATIM_USER_AGENT: Joi.string().min(3).default('fleet-management-system/1.0'),
+  GEOCODER_TIMEOUT_MS: Joi.number().integer().min(100).default(4000), // per attempt (2 attempts)
+  // Comma-separated ISO country codes to search in ('' = worldwide)
+  GEOCODER_COUNTRY_CODES: Joi.string().allow('').default('in'),
 }).unknown(true);
 
 const { value: env, error } = schema.validate(process.env, { abortEarly: false });
@@ -109,5 +116,12 @@ module.exports = {
 
   telemetry: {
     alertCooldownMs: env.ALERT_COOLDOWN_MS,
+  },
+
+  geocoder: {
+    baseUrl: env.NOMINATIM_URL,
+    userAgent: env.NOMINATIM_USER_AGENT,
+    timeoutMs: env.GEOCODER_TIMEOUT_MS,
+    countryCodes: env.GEOCODER_COUNTRY_CODES,
   },
 };
