@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fleet Dashboard</title>
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <!-- Login -->
+    <main id="login-view" class="login" hidden>
+      <form id="login-form" class="card login-card" autocomplete="on">
+        <h1>Fleet Dashboard</h1>
+        <p class="muted">
+          Sign in to see the fleet on the map, search nearby vehicles and read the SMS log.
+        </p>
+
+        <label>
+          Email
+          <input name="email" type="email" required autocomplete="username" />
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" required autocomplete="current-password" />
+        </label>
+        <label>
+          API key <span class="muted">(sent as <code>x-api-key</code>)</span>
+          <input name="apiKey" required value="fleet-dev-key-123" />
+        </label>
+
+        <p id="login-error" class="error" role="alert" hidden></p>
+        <button type="submit" class="primary">Sign in</button>
+
+        <div class="demo-accounts">
+          <span class="muted">Demo accounts:</span>
+          <button type="button" data-demo="manager">Fleet manager</button>
+          <button type="button" data-demo="driver">Driver</button>
+        </div>
+      </form>
+    </main>
+
+    <!-- App -->
+    <div id="app-view" class="app" hidden>
+      <header class="topbar">
+        <strong class="brand">🚚 Fleet Dashboard</strong>
+        <nav class="tabs" id="tabs">
+          <button data-tab="map" class="active">Map</button>
+          <button data-tab="sms" data-roles="admin fleet_manager">SMS Log</button>
+          <button data-tab="alerts" data-roles="admin fleet_manager">Alerts</button>
+        </nav>
+        <div class="session">
+          <span
+            id="rate-limit"
+            class="muted"
+            title="Requests left for this API key in the current window"
+          ></span>
+          <span id="user-name"></span>
+          <span id="user-role" class="badge"></span>
+          <button id="logout">Log out</button>
+        </div>
+      </header>
+
+      <div id="banner" class="banner" hidden></div>
+
+      <!-- Map tab -->
+      <section id="tab-map" class="tab map-tab">
+        <aside class="panel">
+          <h2>Nearby search</h2>
+          <p class="muted">Click the map, or search around an address.</p>
+          <form id="nearby-form" class="nearby-form">
+            <input name="address" placeholder="e.g. Koramangala, Bengaluru" />
+            <label class="radius">
+              Radius <output id="radius-value">5 km</output>
+              <input name="radiusKm" type="range" min="0.5" max="20" step="0.5" value="5" />
+            </label>
+            <div class="row">
+              <button type="submit" class="primary">Search</button>
+              <button type="button" id="nearby-clear">Clear</button>
+            </div>
+          </form>
+          <p id="nearby-summary" class="muted"></p>
+          <ol id="nearby-list" class="result-list"></ol>
+
+          <h2>Fleet</h2>
+          <ul id="legend" class="legend"></ul>
+          <div class="row">
+            <span id="map-updated" class="muted"></span>
+            <button id="map-refresh" title="Refresh now">↻</button>
+          </div>
+        </aside>
+        <div id="map" class="map" role="application" aria-label="Fleet map"></div>
+      </section>
+
+      <!-- SMS tab -->
+      <section id="tab-sms" class="tab" hidden>
+        <div id="sms-stats" class="stats"></div>
+        <div class="toolbar">
+          <select id="sms-status" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+          </select>
+          <select id="sms-type" aria-label="Filter by type">
+            <option value="">All types</option>
+            <option value="status_change">Status change</option>
+            <option value="critical_event">Critical event</option>
+          </select>
+          <span id="sms-updated" class="muted"></span>
+          <button id="sms-refresh" title="Refresh now">↻</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Vehicle</th>
+                <th>Recipient</th>
+                <th>Message</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="sms-rows"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="sms-prev">← Newer</button>
+          <span id="sms-page" class="muted"></span>
+          <button id="sms-next">Older →</button>
+        </div>
+      </section>
+
+      <!-- Alerts tab -->
+      <section id="tab-alerts" class="tab" hidden>
+        <div class="toolbar">
+          <h2>Critical events</h2>
+          <span id="alerts-updated" class="muted"></span>
+          <button id="alerts-refresh" title="Refresh now">↻</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Vehicle</th>
+                <th>Event</th>
+                <th>Location</th>
+                <th>Readings</th>
+              </tr>
+            </thead>
+            <tbody id="alert-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script src="/vendor/leaflet/leaflet.js"></script>
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

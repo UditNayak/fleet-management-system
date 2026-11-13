@@ -211,6 +211,35 @@ never touches other data.
 docker compose --profile tools run --rm seed
 ```
 
+## Dashboard
+
+Open **http://localhost:3000/** for the web dashboard (served by the gateway: plain HTML + JavaScript, Leaflet with
+OpenStreetMap tiles, no build step).
+
+| Tab         | What it shows                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| **Map**     | every vehicle as a pin coloured by status; click the map or type an address → vehicles within X km |
+| **SMS Log** | SMS stats and every SMS with its `sent` / `failed` status (admin, fleet manager)                   |
+| **Alerts**  | critical telemetry events, click to jump to the map (admin, fleet manager)                         |
+
+Admins and fleet managers can change a vehicle's status from its map popup; the SMS result is shown right away.
+The page is public, but every API call it makes uses the API key and the JWT from the login, like any other client.
+It refreshes every 15 s while visible; for long demos raise `RATE_LIMIT_MAX` in `.env` (e.g. 1000).
+
+> In this demo the API key is typed into the browser. A real deployment would keep keys on a server
+> (e.g. a backend-for-frontend) and give browsers only user tokens.
+
+**Demo data and live movement:**
+
+```bash
+docker compose --profile tools run --rm seed       # demo users + Bangalore vehicles (safe to re-run)
+docker compose --profile tools run --rm simulate   # 3 vehicles drive around; one sends a low-battery alert (Ctrl+C stops)
+```
+
+Demo logins (created by the seed): `demo.manager@fleet.dev` / `Manager@123` (fleet manager),
+`demo.driver@fleet.dev` / `Driver@123` (driver). The simulator posts readings to telemetry-service directly on the
+Docker network, like tracking devices would, so it doesn't use up the gateway rate limit.
+
 ## Tests
 
 Tests run in Docker against a throw-away MongoDB container (never against Atlas) and never call the real
@@ -230,6 +259,7 @@ docker compose --profile test down          # stop the test database afterwards
 | `test/05-rbac.test.js`                | 5. Role-based access control               |
 | `test/06-nearby-geocoding.test.js`    | 6. Nearby vehicle search & geocoding       |
 | `test/07-gateway.test.js`             | 7. API key verification & rate limiting    |
+| `test/08-dashboard.test.js`           | Dashboard files, CSP, simulator helpers    |
 
 ## Lint
 
@@ -253,7 +283,8 @@ docker compose --profile test --profile tools down -v --rmi all
 ```
 services/   gateway + one folder per microservice (app.js builds the app, index.js starts it)
 shared/     config, logger, DB connection, app factory, error handling, models, service clients
-scripts/    seed script (Bangalore demo vehicles)
+public/     dashboard (index.html, css/, js/ — browser ES modules)
+scripts/    seed (demo users + Bangalore vehicles) and telemetry simulator
 test/       Mocha/Chai test suite
 docs/       OpenAPI (Swagger) specification, MongoDB Atlas setup guide
 postman/    Postman collection

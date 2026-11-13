@@ -117,3 +117,10 @@ services:
     profiles: [tools]
     env_file: .env
     command: node scripts/seed.js
+
+  # docker compose --profile tools run --rm simulate  → live telemetry for 3 vehicles (Ctrl+C to stop)
+  simulate:
+    <<: *node
+    profiles: [tools]
+    env_file: .env
+    command: node scripts/simulate.js

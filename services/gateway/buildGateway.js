@@ -1,3 +1,4 @@
+const path = require('node:path');
 const express = require('express');
 const createApp = require('../../shared/createApp');
 const apiKeyAuth = require('./middleware/apiKey');
@@ -6,6 +7,16 @@ const createServiceProxy = require('./proxy');
 const servicesHealth = require('./servicesHealth');
 const docsRouter = require('./docs');
 const notFound = require('../../shared/middleware/notFound');
+
+const PUBLIC_DIR = path.join(__dirname, '../../public');
+const LEAFLET_DIR = path.dirname(require.resolve('leaflet/dist/leaflet.js'));
+
+// Content-Security-Policy: only our own scripts (no inline ones), map tiles from OpenStreetMap.
+// helmet's other defaults (no plugins, no framing by other sites, …) stay as they are.
+const cspDirectives = {
+  upgradeInsecureRequests: null, // served over plain http://localhost — don't force https for assets
+  imgSrc: ["'self'", 'data:', 'https://tile.openstreetmap.org'],
+};
 
 /**
  * Builds the API Gateway app. Everything is passed in (instead of read from config)
@@ -31,12 +42,21 @@ function buildGateway({
     name: 'gateway',
     useDb: false,
     parseJson: false, // bodies are streamed to the services untouched
-    // Swagger UI is served over plain http://localhost — don't force https for its assets
-    helmetOptions: { contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } } },
+    helmetOptions: {
+      contentSecurityPolicy: { directives: cspDirectives },
+      // OpenStreetMap blocks tile requests without a Referer (tile usage policy). Send only our
+      // origin (e.g. http://localhost:3000/) to other sites, never full URLs — the browser default.
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    },
     configure: (app) => {
       // Public endpoints (no API key)
       app.get('/health/services', servicesHealth(services));
       app.use('/api-docs', docsRouter());
+
+      // Dashboard: static files (index.html at /). They are public, but every /api call the
+      // page makes still needs the API key and a JWT. Unknown files fall through to the 404 JSON.
+      app.use('/vendor/leaflet', express.static(LEAFLET_DIR));
+      app.use(express.static(PUBLIC_DIR));
 
       // Protected API: key check → rate limit → proxy to the matching service
       const api = express.Router();

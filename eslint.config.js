@@ -18,6 +18,10 @@ module.exports = [
     },
   },
   { files: ['test/**/*.js'], languageOptions: { globals: globals.mocha } },
-  { files: ['public/**/*.js'], languageOptions: { globals: globals.browser } },
+  // Dashboard: ES modules in the browser; Leaflet is loaded as a global script (L)
+  {
+    files: ['public/**/*.js'],
+    languageOptions: { sourceType: 'module', globals: { ...globals.browser, L: 'readonly' } },
+  },
   prettier,
 ];

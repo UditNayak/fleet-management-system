@@ -5,6 +5,9 @@ info:
   description: |
     Backend for a fleet management platform, exposed through an **Express API Gateway**.
 
+    **Dashboard:** a map-based UI (Leaflet + OpenStreetMap) runs at [/](/) — fleet map, nearby search,
+    status changes, SMS log and alerts. It uses exactly these endpoints, with the same API key and JWT.
+
     ### How to call the API
     1. Every `/api/*` request needs an **API key** in the `x-api-key` header.
        Click **Authorize** above and enter your key (local default: `fleet-dev-key-123`).
