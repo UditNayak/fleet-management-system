@@ -73,8 +73,13 @@ curl http://localhost:3000/api/users/health -H "x-api-key: fleet-dev-key-123"
 Import `postman/fleet-management.postman_collection.json`. The collection variables `baseUrl` and `apiKey`
 are pre-filled, and the API key is sent automatically on every request that needs it.
 Set `adminEmail` / `adminPassword` to your admin's credentials (defaults match `.env.example`).
-**Login** requests save the JWT into `adminToken` / `driverToken` / `managerToken`, which the other requests use,
-so run the folders in order: **Gateway → Users → Vehicles → Notifications**.
+**Login** requests save the JWT into `adminToken` / `driverToken` / `managerToken`, which the other requests use.
+
+**Auto-setup:** a collection-level script runs before every request. If a token is missing or expired, or the demo
+data doesn't exist yet, it logs in and creates (once) a demo fleet manager, a demo driver, a fleet manager with an
+unreachable phone (to show failed SMS) and two demo vehicles (`KA01DM2026`, assigned to the demo driver, and
+`KA01DM2027`). So any request, or any folder, can be run on its own; the numbered requests in
+**Notifications** and **Telemetry** are a ready-made demo.
 
 The whole collection can also be run from the command line with Newman (in a container, nothing installed locally):
 
@@ -160,6 +165,24 @@ PATCH /api/vehicles/:id/status ─► vehicle-service ─► POST notification-s
 - `/internal/*` endpoints are for service-to-service calls only: they need `INTERNAL_SERVICE_TOKEN`, and the gateway
   always answers them with 404.
 
+## Telemetry
+
+`telemetry-service` stores GPS / sensor readings and keeps each vehicle's current position up to date.
+
+```
+POST /api/telemetry { vehicleId, location: {lat,lng}, speed, heading, batteryLevel, fuelLevel, engineTemp, event, recordedAt? }
+  ├─ drivers: only for their assigned vehicle (403 NOT_ASSIGNED_DRIVER otherwise)
+  ├─ reading stored (history)
+  ├─ vehicle.location + lastSeenAt updated, unless the reading is older than lastSeenAt
+  └─ event = engine_fault | low_battery | emergency_stop
+       → SMS alert to admins + fleet managers (notification-service),
+         at most once per vehicle + event per ALERT_COOLDOWN_MS (default 5 min)
+```
+
+- `GET /api/telemetry/vehicle/:vehicleId?from=&to=&event=`: history of one vehicle, newest first.
+- `GET /api/telemetry/events`: critical events across the fleet (admin, fleet manager).
+- The reading is stored even if the SMS can't be sent; the alert is retried with the next critical reading.
+
 ## Tests
 
 Tests run in Docker against a throw-away MongoDB container (never against Atlas):
@@ -173,6 +196,7 @@ docker compose --profile test down          # stop the test database afterwards
 | ------------------------------------- | ------------------------------------------ |
 | `test/01-auth.test.js`                | 1. User login & JWT verification           |
 | `test/02-vehicles.test.js`            | 2. Vehicle registration & retrieval        |
+| `test/03-telemetry.test.js`           | 3. Location update & telemetry storage     |
 | `test/04-status-notification.test.js` | 4. Status update & notification triggering |
 | `test/05-rbac.test.js`                | 5. Role-based access control               |
 | `test/07-gateway.test.js`             | 7. API key verification & rate limiting    |

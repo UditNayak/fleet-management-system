@@ -36,6 +36,13 @@ info:
     Every SMS is stored with its delivery status (`sent` / `failed`) and can be read under **Notifications**.
     Services call each other on `/internal/*` endpoints, which the gateway never exposes (always **404**).
 
+    ### Telemetry & critical-event alerts
+    Vehicles report GPS position and sensor readings to `POST /api/telemetry`. Each reading is stored and the
+    vehicle's `location` / `lastSeenAt` are updated (late readings never move a vehicle backwards).
+    A **critical event** (`engine_fault`, `low_battery`, `emergency_stop`) sends an SMS alert to all admins and
+    fleet managers, at most **once per vehicle and event every 5 minutes** (cooldown). Drivers can only report for
+    and read their own (assigned) vehicle.
+
     ### Gateway routing
     | Gateway route | Target service |
     |---|---|
@@ -69,6 +76,8 @@ tags:
     description: Register and manage fleet vehicles, operational status and history (role-based)
   - name: Notifications
     description: SMS delivery log (sent / failed) for admins and fleet managers
+  - name: Telemetry
+    description: GPS / sensor readings from vehicles, history and critical-event alerts
 paths:
   /health:
     get:
@@ -791,6 +800,189 @@ paths:
                   code: NOTIFICATION_NOT_FOUND
                   message: Notification not found
 
+  /api/telemetry:
+    post:
+      tags: [Telemetry]
+      summary: Report a reading (any role; drivers only for their assigned vehicle)
+      description: |
+        Stores the reading and moves the vehicle to `location` if the reading is newer than the vehicle's `lastSeenAt`
+        (`vehicleUpdated`). A critical `event` sends an SMS alert to admins and fleet managers (`alert`), unless the same
+        vehicle already alerted the same event within the cooldown. The reading is stored even if the SMS fails.
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryRequest'
+            examples:
+              normal:
+                summary: Regular position update
+                value:
+                  vehicleId: 6af717600b7e97513be50437
+                  location:
+                    lat: 12.9352
+                    lng: 77.6245
+                  speed: 42.5
+                  heading: 90
+                  batteryLevel: 78
+                  fuelLevel: 55
+                  engineTemp: 92
+              engineFault:
+                summary: Critical event (sends SMS)
+                value:
+                  vehicleId: 6af717600b7e97513be50437
+                  location:
+                    lat: 12.9352
+                    lng: 77.6245
+                  engineTemp: 128
+                  event: engine_fault
+      responses:
+        '201':
+          description: Reading stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryResult'
+              examples:
+                normal:
+                  value:
+                    telemetry:
+                      id: 6af7200d50f3e5492d867c01
+                      vehicle: 6af717600b7e97513be50437
+                      location:
+                        lat: 12.9352
+                        lng: 77.6245
+                      speed: 42.5
+                      event: none
+                      recordedAt: '2026-11-14T09:15:00.000Z'
+                    vehicleUpdated: true
+                    alert: null
+                alerted:
+                  value:
+                    telemetry:
+                      id: 6af7200d50f3e5492d867c02
+                      event: engine_fault
+                    vehicleUpdated: true
+                    alert:
+                      notified: true
+                      notifications:
+                        sent: 2
+                        failed: 1
+                cooldown:
+                  value:
+                    telemetry:
+                      id: 6af7200d50f3e5492d867c03
+                      event: engine_fault
+                    vehicleUpdated: true
+                    alert:
+                      notified: false
+                      reason: cooldown
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/NotAssignedDriver'
+        '404':
+          $ref: '#/components/responses/VehicleNotFound'
+
+  /api/telemetry/vehicle/{vehicleId}:
+    parameters:
+      - name: vehicleId
+        in: path
+        required: true
+        schema:
+          type: string
+          example: 6af717600b7e97513be50437
+    get:
+      tags: [Telemetry]
+      summary: Reading history of one vehicle, newest first (drivers only their own vehicle)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: event
+          in: query
+          schema:
+            $ref: '#/components/schemas/TelemetryEvent'
+        - name: from
+          in: query
+          description: Readings recorded at or after this time
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Readings recorded at or before this time (not before `from`)
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of readings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/NotAssignedDriver'
+        '404':
+          $ref: '#/components/responses/VehicleNotFound'
+
+  /api/telemetry/events:
+    get:
+      tags: [Telemetry]
+      summary: Critical events across the whole fleet, newest first (admin, fleet_manager)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: event
+          in: query
+          schema:
+            type: string
+            enum: [engine_fault, low_battery, emergency_stop]
+        - name: vehicleId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Readings recorded at or after this time
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Readings recorded at or before this time (not before `from`)
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of critical readings, each with the vehicle's registration number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CriticalEventList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/NotificationForbidden'
+
 components:
   parameters:
     UserId:
@@ -1068,6 +1260,16 @@ components:
             error:
               code: FORBIDDEN
               message: 'This action requires one of these roles: admin, fleet_manager'
+    NotAssignedDriver:
+      description: A driver tried to use a vehicle that is not assigned to them (or the role is not allowed)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_ASSIGNED_DRIVER
+              message: Drivers can only access their assigned vehicle
 
   schemas:
     Health:
@@ -1519,6 +1721,145 @@ components:
             critical_event:
               type: integer
               example: 0
+    TelemetryEvent:
+      type: string
+      enum: [none, engine_fault, low_battery, emergency_stop]
+    TelemetryRequest:
+      type: object
+      required: [vehicleId, location]
+      additionalProperties: false
+      properties:
+        vehicleId:
+          type: string
+        location:
+          $ref: '#/components/schemas/LatLng'
+        speed:
+          type: number
+          minimum: 0
+          maximum: 300
+          description: km/h
+        heading:
+          type: number
+          minimum: 0
+          maximum: 359.99
+          description: degrees, 0 = north
+        batteryLevel:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: '%'
+        fuelLevel:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: '%'
+        engineTemp:
+          type: number
+          minimum: -40
+          maximum: 200
+          description: °C
+        event:
+          allOf:
+            - $ref: '#/components/schemas/TelemetryEvent'
+          default: none
+        recordedAt:
+          type: string
+          format: date-time
+          description: Device time (default now); at most 5 minutes in the future
+    Telemetry:
+      type: object
+      properties:
+        id:
+          type: string
+        vehicle:
+          type: string
+        location:
+          $ref: '#/components/schemas/LatLng'
+        speed:
+          type: number
+        heading:
+          type: number
+        batteryLevel:
+          type: number
+        fuelLevel:
+          type: number
+        engineTemp:
+          type: number
+        event:
+          $ref: '#/components/schemas/TelemetryEvent'
+        recordedAt:
+          type: string
+          format: date-time
+        reportedBy:
+          type: string
+          description: User id
+        alertSentAt:
+          type: string
+          format: date-time
+          description: Present when this reading triggered an SMS alert
+        createdAt:
+          type: string
+          format: date-time
+    TelemetryResult:
+      type: object
+      properties:
+        telemetry:
+          $ref: '#/components/schemas/Telemetry'
+        vehicleUpdated:
+          type: boolean
+          description: false when the reading is older than the vehicle's last known position
+        alert:
+          type: object
+          nullable: true
+          description: '`null` for `event: none`'
+          properties:
+            notified:
+              type: boolean
+            reason:
+              type: string
+              enum: [cooldown]
+            notifications:
+              type: object
+              nullable: true
+              description: '`null` if the notification service was unavailable'
+              properties:
+                sent:
+                  type: integer
+                failed:
+                  type: integer
+    TelemetryList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Telemetry'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+    CriticalEventList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Telemetry'
+              - type: object
+                properties:
+                  vehicleRegistration:
+                    type: string
+                    nullable: true
+                    example: KA01DM2026
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
     Error:
       type: object
       properties:

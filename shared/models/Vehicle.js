@@ -74,3 +74,4 @@ module.exports = Vehicle;
 module.exports.VEHICLE_TYPES = VEHICLE_TYPES;
 module.exports.VEHICLE_STATUSES = VEHICLE_STATUSES;
 module.exports.toPoint = toPoint;
+module.exports.toLatLng = toLatLng;

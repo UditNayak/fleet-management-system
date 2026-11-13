@@ -2,8 +2,6 @@ const mongoose = require('mongoose');
 
 const NOTIFICATION_TYPES = ['status_change', 'critical_event'];
 const NOTIFICATION_STATUSES = ['sent', 'failed'];
-// Telemetry events that trigger an SMS alert (sent by telemetry-service from Phase 6)
-const CRITICAL_EVENTS = ['engine_fault', 'low_battery', 'emergency_stop'];
 
 const { ObjectId } = mongoose.Schema.Types;
 
@@ -41,4 +39,3 @@ const Notification =
 module.exports = Notification;
 module.exports.NOTIFICATION_TYPES = NOTIFICATION_TYPES;
 module.exports.NOTIFICATION_STATUSES = NOTIFICATION_STATUSES;
-module.exports.CRITICAL_EVENTS = CRITICAL_EVENTS;

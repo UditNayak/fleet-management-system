@@ -47,6 +47,12 @@ const schema = Joi.object({
 
   // SMS notifications (only the mock provider for now; Twilio is optional later)
   SMS_PROVIDER: Joi.string().valid('mock').default('mock'),
+
+  // Telemetry: minimum time between two SMS alerts for the same vehicle + event
+  ALERT_COOLDOWN_MS: Joi.number()
+    .integer()
+    .min(0)
+    .default(5 * 60 * 1000),
 }).unknown(true);
 
 const { value: env, error } = schema.validate(process.env, { abortEarly: false });
@@ -99,5 +105,9 @@ module.exports = {
 
   sms: {
     provider: env.SMS_PROVIDER,
+  },
+
+  telemetry: {
+    alertCooldownMs: env.ALERT_COOLDOWN_MS,
   },
 };

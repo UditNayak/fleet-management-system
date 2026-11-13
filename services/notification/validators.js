@@ -1,10 +1,7 @@
 const Joi = require('joi');
 const { VEHICLE_STATUSES } = require('../../shared/models/Vehicle');
-const {
-  NOTIFICATION_TYPES,
-  NOTIFICATION_STATUSES,
-  CRITICAL_EVENTS,
-} = require('../../shared/models/Notification');
+const { NOTIFICATION_TYPES, NOTIFICATION_STATUSES } = require('../../shared/models/Notification');
+const { CRITICAL_EVENTS } = require('../../shared/models/Telemetry');
 const { objectId, location, pagination } = require('../../shared/validation/common');
 
 const vehicleRef = Joi.object({

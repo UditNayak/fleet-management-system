@@ -1,6 +1,7 @@
 const { createUser } = require('../services/user/service');
 const { signToken } = require('../shared/auth/jwt');
 const Vehicle = require('../shared/models/Vehicle');
+const Telemetry = require('../shared/models/Telemetry');
 
 let counter = 0;
 
@@ -34,4 +35,14 @@ async function createVehicle(overrides = {}) {
   });
 }
 
-module.exports = { createUserWithToken, bearer, createVehicle };
+// Inserts a telemetry reading directly (default: Bangalore, recorded now, no event)
+function createTelemetry(vehicle, { lat = 12.9716, lng = 77.5946, ...overrides } = {}) {
+  return Telemetry.create({
+    vehicle: vehicle.id,
+    location: Vehicle.toPoint({ lat, lng }),
+    recordedAt: new Date(),
+    ...overrides,
+  });
+}
+
+module.exports = { createUserWithToken, bearer, createVehicle, createTelemetry };
