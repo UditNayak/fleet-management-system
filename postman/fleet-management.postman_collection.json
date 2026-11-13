@@ -72,6 +72,30 @@
     {
       "key": "managerId",
       "value": ""
+    },
+    {
+      "key": "managerToken",
+      "value": ""
+    },
+    {
+      "key": "vehicleId",
+      "value": ""
+    },
+    {
+      "key": "vehicleReg",
+      "value": ""
+    },
+    {
+      "key": "vehicleRegMessy",
+      "value": ""
+    },
+    {
+      "key": "tempVehicleId",
+      "value": ""
+    },
+    {
+      "key": "tempVehicleReg",
+      "value": ""
     }
   ],
   "item": [
@@ -121,7 +145,7 @@
           }
         },
         {
-          "name": "API key missing \u2192 401",
+          "name": "API key missing → 401",
           "request": {
             "method": "GET",
             "header": [],
@@ -130,7 +154,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "users", "health"]
             },
-            "description": "No x-api-key header \u2192 401 MISSING_API_KEY.",
+            "description": "No x-api-key header → 401 MISSING_API_KEY.",
             "auth": {
               "type": "noauth"
             }
@@ -149,7 +173,7 @@
           ]
         },
         {
-          "name": "API key invalid \u2192 401",
+          "name": "API key invalid → 401",
           "request": {
             "method": "GET",
             "header": [
@@ -163,7 +187,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "users", "health"]
             },
-            "description": "Wrong x-api-key \u2192 401 INVALID_API_KEY.",
+            "description": "Wrong x-api-key → 401 INVALID_API_KEY.",
             "auth": {
               "type": "noauth"
             }
@@ -182,7 +206,7 @@
           ]
         },
         {
-          "name": "Routed: /api/users/health \u2192 user-service",
+          "name": "Routed: /api/users/health → user-service",
           "request": {
             "method": "GET",
             "header": [],
@@ -207,7 +231,7 @@
           ]
         },
         {
-          "name": "Routed: /api/vehicles/health \u2192 vehicle-service",
+          "name": "Routed: /api/vehicles/health → vehicle-service",
           "request": {
             "method": "GET",
             "header": [],
@@ -232,7 +256,7 @@
           ]
         },
         {
-          "name": "Routed: /api/telemetry/health \u2192 telemetry-service",
+          "name": "Routed: /api/telemetry/health → telemetry-service",
           "request": {
             "method": "GET",
             "header": [],
@@ -257,7 +281,7 @@
           ]
         },
         {
-          "name": "Routed: /api/maps/health \u2192 maps-service",
+          "name": "Routed: /api/maps/health → maps-service",
           "request": {
             "method": "GET",
             "header": [],
@@ -282,7 +306,7 @@
           ]
         },
         {
-          "name": "Routed: /api/notifications/health \u2192 notification-service",
+          "name": "Routed: /api/notifications/health → notification-service",
           "request": {
             "method": "GET",
             "header": [],
@@ -307,7 +331,7 @@
           ]
         },
         {
-          "name": "Unknown route \u2192 404",
+          "name": "Unknown route → 404",
           "request": {
             "method": "GET",
             "header": [],
@@ -316,7 +340,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "unknown", "thing"]
             },
-            "description": "Unknown /api prefix \u2192 404 NOT_FOUND."
+            "description": "Unknown /api prefix → 404 NOT_FOUND."
           },
           "event": [
             {
@@ -385,7 +409,7 @@
           ]
         },
         {
-          "name": "Register duplicate email \u2192 409",
+          "name": "Register duplicate email → 409",
           "request": {
             "method": "POST",
             "header": [
@@ -424,7 +448,7 @@
           ]
         },
         {
-          "name": "Register invalid data \u2192 400",
+          "name": "Register invalid data → 400",
           "request": {
             "method": "POST",
             "header": [
@@ -463,7 +487,7 @@
           ]
         },
         {
-          "name": "Register with role admin \u2192 400",
+          "name": "Register with role admin → 400",
           "request": {
             "method": "POST",
             "header": [
@@ -592,7 +616,7 @@
           ]
         },
         {
-          "name": "Login wrong password \u2192 401",
+          "name": "Login wrong password → 401",
           "request": {
             "method": "POST",
             "header": [
@@ -669,7 +693,7 @@
           ]
         },
         {
-          "name": "My profile without token \u2192 401",
+          "name": "My profile without token → 401",
           "request": {
             "method": "GET",
             "header": [],
@@ -694,7 +718,7 @@
           ]
         },
         {
-          "name": "My profile with bad token \u2192 401",
+          "name": "My profile with bad token → 401",
           "request": {
             "method": "GET",
             "header": [
@@ -724,7 +748,7 @@
           ]
         },
         {
-          "name": "List users as driver \u2192 403",
+          "name": "List users as driver → 403",
           "request": {
             "method": "GET",
             "header": [
@@ -868,6 +892,56 @@
           ]
         },
         {
+          "name": "Login as fleet manager",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "login"]
+            },
+            "description": "Logs in the fleet manager created above and stores the JWT in managerToken.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"Manager@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('managerEmail')) {",
+                  "  throw new Error('managerEmail is empty: run \"Create fleet manager (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('managerToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Get user by id (admin)",
           "request": {
             "method": "GET",
@@ -952,6 +1026,966 @@
               "script": {
                 "type": "text/javascript",
                 "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "description": "Vehicle CRUD, status history and role-based access (flows 2 & 5). Run the Users folder first (it sets adminToken, driverToken, managerToken), then run this folder top to bottom. The main vehicle is kept; only a second throw-away vehicle is deleted.",
+      "item": [
+        {
+          "name": "Register vehicle (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "description": "Registration number is sent in a messy format and stored normalised (e.g. KA05MF1234). A random number is generated on each run.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"{{vehicleRegMessy}}\",\n  \"model\": \"Tata Ace Gold\",\n  \"type\": \"truck\",\n  \"year\": 2023,\n  \"address\": \"MG Road, Bengaluru\",\n  \"location\": {\n    \"lat\": 12.9756,\n    \"lng\": 77.605\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "const digits = String(Math.floor(1000 + Math.random() * 9000));",
+                  "pm.collectionVariables.set('vehicleReg', `KA05MF${digits}`);",
+                  "pm.collectionVariables.set('vehicleRegMessy', `ka-05 mf ${digits}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const { vehicle } = pm.response.json();",
+                  "pm.test('Registration number normalised', () => pm.expect(vehicle.registrationNumber).to.eql(pm.collectionVariables.get('vehicleReg')));",
+                  "pm.test('Starts idle', () => pm.expect(vehicle.status).to.eql('idle'));",
+                  "pm.collectionVariables.set('vehicleId', vehicle.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register duplicate (other format) → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"{{vehicleReg}}\",\n  \"model\": \"Tata Ace Gold\",\n  \"type\": \"truck\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleReg')) {",
+                  "  throw new Error('vehicleReg is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error code is VEHICLE_EXISTS', () => pm.expect(pm.response.json().error.code).to.eql('VEHICLE_EXISTS'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register invalid data → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"NOT-A-PLATE\",\n  \"model\": \"X\",\n  \"type\": \"rocket\",\n  \"location\": {\n    \"lat\": 95,\n    \"lng\": 77.6\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register as driver → 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"KA01AB0001\",\n  \"model\": \"Tata Ace Gold\",\n  \"type\": \"truck\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('driverToken')) {",
+                  "  throw new Error('driverToken is empty: run \"Login as driver\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List vehicles (driver)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Every logged-in role may read vehicles."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('driverToken')) {",
+                  "  throw new Error('driverToken is empty: run \"Login as driver\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List filtered: idle trucks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles?status=idle&type=truck",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "idle"
+                },
+                {
+                  "key": "type",
+                  "value": "truck"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only idle trucks', () => pm.response.json().data.forEach((v) => pm.expect([v.status, v.type]).to.eql(['idle', 'truck'])));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search by registration prefix",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles?search=ka05&sort=registrationNumber",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "ka05"
+                },
+                {
+                  "key": "sort",
+                  "value": "registrationNumber"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All start with KA05', () => pm.response.json().data.forEach((v) => pm.expect(v.registrationNumber).to.match(/^KA05/)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update details (fleet manager)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Tata Ace Gold CNG\",\n  \"year\": 2024,\n  \"location\": {\n    \"lat\": 12.9352,\n    \"lng\": 77.6245\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('managerToken')) {",
+                  "  throw new Error('managerToken is empty: run \"Login as fleet manager\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Model updated', () => pm.expect(pm.response.json().vehicle.model).to.eql('Tata Ace Gold CNG'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update status via PATCH /:id → 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            },
+            "description": "Status can only change through /status, so it is always recorded and notified.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change status → maintenance (fleet manager)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"maintenance\",\n  \"reason\": \"Scheduled brake service\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('managerToken')) {",
+                  "  throw new Error('managerToken is empty: run \"Login as fleet manager\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Changed', () => pm.expect(pm.response.json().changed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Same status again → changed: false",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('managerToken')) {",
+                  "  throw new Error('managerToken is empty: run \"Login as fleet manager\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Not changed', () => pm.expect(pm.response.json().changed).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get vehicle with status history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has history', () => pm.expect(pm.response.json().vehicle.statusHistory).to.have.length.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change status as driver → 403",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}", "status"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('driverToken')) {",
+                  "  throw new Error('driverToken is empty: run \"Login as driver\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete as driver → 403",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('driverToken')) {",
+                  "  throw new Error('driverToken is empty: run \"Login as driver\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete as fleet manager → 403",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('managerToken')) {",
+                  "  throw new Error('managerToken is empty: run \"Login as fleet manager\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete without token → 401",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('vehicleId')) {",
+                  "  throw new Error('vehicleId is empty: run \"Register vehicle (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error code is TOKEN_MISSING', () => pm.expect(pm.response.json().error.code).to.eql('TOKEN_MISSING'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register vehicle to delete (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            },
+            "description": "A second, throw-away vehicle for the admin delete below, so the main vehicle stays in Atlas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"registrationNumber\": \"{{tempVehicleReg}}\",\n  \"model\": \"Mahindra Bolero Pik-Up\",\n  \"type\": \"van\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "pm.collectionVariables.set('tempVehicleReg', `KA05TD${Math.floor(1000 + Math.random() * 9000)}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('tempVehicleId', pm.response.json().vehicle.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete as admin → 204",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{tempVehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{tempVehicleId}}"]
+            },
+            "description": "Deletes the throw-away vehicle. The main vehicle stays for the Atlas screenshot."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('tempVehicleId')) {",
+                  "  throw new Error('tempVehicleId is empty: run \"Register vehicle to delete (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted vehicle → 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{tempVehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{tempVehicleId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminToken')) {",
+                  "  throw new Error('adminToken is empty: run \"Login as admin\" first (re-importing the collection clears saved variables).');",
+                  "}",
+                  "if (!pm.collectionVariables.get('tempVehicleId')) {",
+                  "  throw new Error('tempVehicleId is empty: run \"Register vehicle to delete (admin)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error code is VEHICLE_NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('VEHICLE_NOT_FOUND'));"
+                ]
               }
             }
           ]

@@ -1,5 +1,6 @@
 const { createUser } = require('../services/user/service');
 const { signToken } = require('../shared/auth/jwt');
+const Vehicle = require('../shared/models/Vehicle');
 
 let counter = 0;
 
@@ -20,4 +21,17 @@ async function createUserWithToken(role = 'driver', overrides = {}) {
 
 const bearer = (token) => ({ Authorization: `Bearer ${token}` });
 
-module.exports = { createUserWithToken, bearer };
+let vehicleCounter = 0;
+
+// Inserts a vehicle directly (bypassing the API) with a unique registration number
+async function createVehicle(overrides = {}) {
+  vehicleCounter += 1;
+  return Vehicle.create({
+    registrationNumber: `KA01AB${String(1000 + vehicleCounter).padStart(4, '0')}`,
+    model: 'Tata Ace Gold',
+    type: 'truck',
+    ...overrides,
+  });
+}
+
+module.exports = { createUserWithToken, bearer, createVehicle };

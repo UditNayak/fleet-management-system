@@ -13,9 +13,15 @@ const phone = Joi.string()
     'string.pattern.base': '{{#label}} must be in international format, e.g. +919876543210',
   });
 
+// Clients send coordinates as { lat, lng }; models convert to GeoJSON internally
+const location = Joi.object({
+  lat: Joi.number().min(-90).max(90).required(),
+  lng: Joi.number().min(-180).max(180).required(),
+});
+
 const pagination = {
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
 };
 
-module.exports = { objectId, phone, pagination };
+module.exports = { objectId, phone, location, pagination };

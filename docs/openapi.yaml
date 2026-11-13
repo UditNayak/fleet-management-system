@@ -20,6 +20,15 @@ info:
 
     Public sign-up (`/api/users/register`) always creates a `driver`; only an admin can assign other roles.
 
+    #### Vehicle permissions
+    | Action | admin | fleet_manager | driver |
+    |---|:-:|:-:|:-:|
+    | List / view vehicles | ✅ | ✅ | ✅ |
+    | Register, update, change status | ✅ | ✅ | ❌ |
+    | Delete | ✅ | ❌ | ❌ |
+
+    Without a token → **401**; with a token but the wrong role → **403 `FORBIDDEN`**.
+
     ### Gateway routing
     | Gateway route | Target service |
     |---|---|
@@ -49,6 +58,8 @@ tags:
     description: Requests routed through the gateway to backend services
   - name: Users
     description: Registration, login (JWT), profile and admin user management
+  - name: Vehicles
+    description: Register and manage fleet vehicles, operational status and history (role-based)
 paths:
   /health:
     get:
@@ -429,6 +440,249 @@ paths:
         '404':
           $ref: '#/components/responses/UserNotFound'
 
+  /api/vehicles:
+    get:
+      tags: [Vehicles]
+      summary: List vehicles (any role)
+      description: |
+        Filters can be combined. `search` matches the **start** of the registration number, ignoring case,
+        spaces and hyphens (`ka 01` finds `KA01AB1234`). `statusHistory` is left out of list items.
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/VehicleType'
+        - name: assignedDriver
+          in: query
+          description: Only vehicles assigned to this driver (user id)
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Registration number prefix
+          schema:
+            type: string
+            maxLength: 20
+            example: KA01
+        - name: sort
+          in: query
+          description: Sort field; a leading `-` means descending
+          schema:
+            type: string
+            enum:
+              [
+                createdAt,
+                -createdAt,
+                updatedAt,
+                -updatedAt,
+                registrationNumber,
+                -registrationNumber,
+              ]
+            default: -createdAt
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of vehicles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+    post:
+      tags: [Vehicles]
+      summary: Register a vehicle (admin, fleet_manager)
+      description: |
+        The registration number is normalised (`ka-01 ab 1234` → `KA01AB1234`) and must be unique.
+        New vehicles start with status `idle`; `status` is not accepted here, so use `PATCH /api/vehicles/{id}/status`.
+        `assignedDriver` must be an existing, active user with the `driver` role.
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVehicleRequest'
+            example:
+              registrationNumber: KA 01 AB 1234
+              model: Tata Ace Gold
+              type: truck
+              year: 2023
+              address: MG Road, Bengaluru
+              location:
+                lat: 12.9756
+                lng: 77.605
+      responses:
+        '201':
+          description: Vehicle registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+        '400':
+          $ref: '#/components/responses/VehicleBadRequest'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/VehicleForbidden'
+        '409':
+          $ref: '#/components/responses/VehicleExists'
+
+  /api/vehicles/{id}:
+    parameters:
+      - $ref: '#/components/parameters/VehicleId'
+    get:
+      tags: [Vehicles]
+      summary: Get a vehicle with its status history (any role)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      responses:
+        '200':
+          description: The vehicle, including `statusHistory`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '404':
+          $ref: '#/components/responses/VehicleNotFound'
+    patch:
+      tags: [Vehicles]
+      summary: Update vehicle details (admin, fleet_manager)
+      description: |
+        `registrationNumber` and `status` cannot be changed here. Send `null` for
+        `address`, `location` or `assignedDriver` to clear it (e.g. unassign the driver).
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVehicleRequest'
+            examples:
+              details:
+                summary: Change details and location
+                value:
+                  model: Tata Ace Gold CNG
+                  year: 2024
+                  location:
+                    lat: 12.9352
+                    lng: 77.6245
+              unassign:
+                summary: Unassign the driver
+                value:
+                  assignedDriver: null
+      responses:
+        '200':
+          description: Updated vehicle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+        '400':
+          $ref: '#/components/responses/VehicleBadRequest'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/VehicleForbidden'
+        '404':
+          $ref: '#/components/responses/VehicleNotFound'
+    delete:
+      tags: [Vehicles]
+      summary: Delete a vehicle (admin only)
+      description: Fleet managers and drivers get **403 FORBIDDEN** and the vehicle stays.
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      responses:
+        '204':
+          description: Deleted (no body)
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/VehicleNotFound'
+
+  /api/vehicles/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/VehicleId'
+    patch:
+      tags: [Vehicles]
+      summary: Change the operational status (admin, fleet_manager)
+      description: |
+        If the status really changes, an entry `{ from, to, reason, changedBy, changedAt }` is added to
+        `statusHistory` and a notification is triggered (SMS to fleet managers, from Phase 5) → `changed: true`.
+        Sending the current status changes nothing → `changed: false`, no history entry, no notification.
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStatusRequest'
+            example:
+              status: maintenance
+              reason: Scheduled brake service
+      responses:
+        '200':
+          description: Result of the status change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusChangeResponse'
+              examples:
+                changed:
+                  value:
+                    vehicle:
+                      id: 6731a0c2a1b2c3d4e5f60718
+                      registrationNumber: KA01AB1234
+                      status: maintenance
+                    changed: true
+                    change:
+                      from: idle
+                      to: maintenance
+                      reason: Scheduled brake service
+                      changedBy: 6730f0c2a1b2c3d4e5f60718
+                      changedAt: '2026-11-13T09:30:00.000Z'
+                unchanged:
+                  value:
+                    vehicle:
+                      id: 6731a0c2a1b2c3d4e5f60718
+                      registrationNumber: KA01AB1234
+                      status: maintenance
+                    changed: false
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/VehicleForbidden'
+        '404':
+          $ref: '#/components/responses/VehicleNotFound'
+
 components:
   parameters:
     UserId:
@@ -439,6 +693,14 @@ components:
       schema:
         type: string
         example: 6730f0c2a1b2c3d4e5f60718
+    VehicleId:
+      name: id
+      in: path
+      required: true
+      description: Vehicle id (24-character hex)
+      schema:
+        type: string
+        example: 6731a0c2a1b2c3d4e5f60718
     Page:
       name: page
       in: query
@@ -629,6 +891,57 @@ components:
             error:
               code: EMAIL_TAKEN
               message: An account with this email already exists
+    VehicleNotFound:
+      description: No vehicle with this id
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VEHICLE_NOT_FOUND
+              message: Vehicle not found
+    VehicleExists:
+      description: Registration number already registered
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VEHICLE_EXISTS
+              message: A vehicle with registration number KA01AB1234 already exists
+    VehicleForbidden:
+      description: Logged in, but drivers cannot modify vehicles
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: 'This action requires one of these roles: admin, fleet_manager'
+    VehicleBadRequest:
+      description: Invalid input, or `assignedDriver` is not an active driver
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Request validation failed
+                  details:
+                    - location: body
+                      field: registrationNumber
+                      message: registrationNumber must be a valid registration number, e.g. KA01AB1234
+            invalidDriver:
+              value:
+                error:
+                  code: INVALID_DRIVER
+                  message: assignedDriver must be an existing, active user with the driver role
 
   schemas:
     Health:
@@ -794,6 +1107,189 @@ components:
           example: 3600
         user:
           $ref: '#/components/schemas/User'
+    VehicleType:
+      type: string
+      enum: [truck, van, car, bike, bus]
+    VehicleStatus:
+      type: string
+      enum: [active, idle, maintenance, inactive]
+    LatLng:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+          example: 12.9756
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+          example: 77.605
+    Vehicle:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 6731a0c2a1b2c3d4e5f60718
+        registrationNumber:
+          type: string
+          example: KA01AB1234
+        model:
+          type: string
+          example: Tata Ace Gold
+        type:
+          $ref: '#/components/schemas/VehicleType'
+        year:
+          type: integer
+          example: 2023
+        status:
+          $ref: '#/components/schemas/VehicleStatus'
+        address:
+          type: string
+          example: MG Road, Bengaluru
+        location:
+          allOf:
+            - $ref: '#/components/schemas/LatLng'
+          nullable: true
+          description: Stored as a GeoJSON point (2dsphere index) and returned as lat/lng
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last telemetry update (Phase 6)
+        assignedDriver:
+          type: string
+          nullable: true
+          description: User id of the assigned driver
+        createdBy:
+          type: string
+          description: User id of whoever registered the vehicle
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StatusChange:
+      type: object
+      properties:
+        from:
+          $ref: '#/components/schemas/VehicleStatus'
+        to:
+          $ref: '#/components/schemas/VehicleStatus'
+        reason:
+          type: string
+          example: Scheduled brake service
+        changedBy:
+          type: string
+          description: User id
+        changedAt:
+          type: string
+          format: date-time
+    VehicleDetail:
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          properties:
+            statusHistory:
+              type: array
+              description: Oldest first
+              items:
+                $ref: '#/components/schemas/StatusChange'
+    VehicleResponse:
+      type: object
+      properties:
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+    VehicleDetailResponse:
+      type: object
+      properties:
+        vehicle:
+          $ref: '#/components/schemas/VehicleDetail'
+    VehicleList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vehicle'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 7
+    CreateVehicleRequest:
+      type: object
+      required: [registrationNumber, model, type]
+      additionalProperties: false
+      properties:
+        registrationNumber:
+          type: string
+          description: Indian format, spaces/hyphens allowed (normalised to e.g. KA01AB1234)
+          example: KA 01 AB 1234
+        model:
+          type: string
+          minLength: 2
+          maxLength: 100
+        type:
+          $ref: '#/components/schemas/VehicleType'
+        year:
+          type: integer
+          minimum: 1990
+        address:
+          type: string
+          maxLength: 200
+        location:
+          $ref: '#/components/schemas/LatLng'
+        assignedDriver:
+          type: string
+          description: User id of an active driver
+    UpdateVehicleRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        model:
+          type: string
+        type:
+          $ref: '#/components/schemas/VehicleType'
+        year:
+          type: integer
+        address:
+          type: string
+          nullable: true
+        location:
+          allOf:
+            - $ref: '#/components/schemas/LatLng'
+          nullable: true
+        assignedDriver:
+          type: string
+          nullable: true
+    ChangeStatusRequest:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          $ref: '#/components/schemas/VehicleStatus'
+        reason:
+          type: string
+          maxLength: 200
+    StatusChangeResponse:
+      type: object
+      properties:
+        vehicle:
+          $ref: '#/components/schemas/VehicleDetail'
+        changed:
+          type: boolean
+        change:
+          $ref: '#/components/schemas/StatusChange'
     Error:
       type: object
       properties:

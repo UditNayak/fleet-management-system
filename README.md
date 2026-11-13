@@ -73,7 +73,16 @@ curl http://localhost:3000/api/users/health -H "x-api-key: fleet-dev-key-123"
 Import `postman/fleet-management.postman_collection.json`. The collection variables `baseUrl` and `apiKey`
 are pre-filled, and the API key is sent automatically on every request that needs it.
 Set `adminEmail` / `adminPassword` to your admin's credentials (defaults match `.env.example`).
-**Login** requests save the JWT into `adminToken` / `driverToken`, which the other requests use.
+**Login** requests save the JWT into `adminToken` / `driverToken` / `managerToken`, which the other requests use,
+so run the folders in order: **Gateway → Users → Vehicles**.
+
+The whole collection can also be run from the command line with Newman (in a container, nothing installed locally):
+
+```bash
+docker run --rm -v "$PWD/postman":/etc/newman postman/newman:6-alpine run fleet-management.postman_collection.json \
+  --env-var baseUrl=http://host.docker.internal:3000 \
+  --env-var adminEmail=admin@fleet.dev --env-var adminPassword=Admin@12345
+```
 
 ## Authentication & Roles
 
@@ -104,6 +113,31 @@ curl http://localhost:3000/api/users/me -H "x-api-key: fleet-dev-key-123" -H "Au
 
 Passwords are hashed with bcrypt; tokens are HS256 JWTs signed with `JWT_SECRET` and expire after `JWT_EXPIRES_IN` (default 1h).
 
+## Vehicles
+
+Vehicles are managed by `vehicle-service` (`/api/vehicles`). Every request needs the API key **and** a JWT.
+
+| Action                                          | admin | fleet_manager | driver |
+| ----------------------------------------------- | :---: | :-----------: | :----: |
+| `GET /api/vehicles`, `GET /api/vehicles/:id`    |  ✅   |      ✅       |   ✅   |
+| `POST /api/vehicles`, `PATCH /api/vehicles/:id` |  ✅   |      ✅       |   ❌   |
+| `PATCH /api/vehicles/:id/status`                |  ✅   |      ✅       |   ❌   |
+| `DELETE /api/vehicles/:id`                      |  ✅   |      ❌       |   ❌   |
+
+- **Registration numbers** are normalised and unique: `ka-01 ab 1234` is stored as `KA01AB1234`.
+- **Location** is sent and returned as `{ "lat": 12.97, "lng": 77.59 }` and stored as a GeoJSON point with a
+  `2dsphere` index (used by the nearby search later).
+- **Status** (`active`, `idle`, `maintenance`, `inactive`) only changes through `PATCH /:id/status`. Each change is
+  appended to `statusHistory` (`from`, `to`, `reason`, `changedBy`, `changedAt`) and triggers a status-change hook
+  (SMS notification).
+- **List filters:** `status`, `type`, `assignedDriver`, `search` (registration prefix), `sort`, `page`, `limit`.
+
+```bash
+curl -X POST http://localhost:3000/api/vehicles \
+  -H "x-api-key: fleet-dev-key-123" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"registrationNumber":"KA 01 AB 1234","model":"Tata Ace Gold","type":"truck","location":{"lat":12.9756,"lng":77.605}}'
+```
+
 ## Tests
 
 Tests run in Docker against a throw-away MongoDB container (never against Atlas):
@@ -112,6 +146,13 @@ Tests run in Docker against a throw-away MongoDB container (never against Atlas)
 docker compose --profile test run --rm test
 docker compose --profile test down          # stop the test database afterwards
 ```
+
+| File                       | Flow                                    |
+| -------------------------- | --------------------------------------- |
+| `test/01-auth.test.js`     | 1. User login & JWT verification        |
+| `test/02-vehicles.test.js` | 2. Vehicle registration & retrieval     |
+| `test/05-rbac.test.js`     | 5. Role-based access control            |
+| `test/07-gateway.test.js`  | 7. API key verification & rate limiting |
 
 ## Lint
 
