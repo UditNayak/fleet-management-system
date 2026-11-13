@@ -172,6 +172,18 @@ describe('API Gateway (flow 7: API key verification & rate limiting)', () => {
       expect(res.status).to.equal(404);
       expect(res.body.error.code).to.equal('NOT_FOUND');
     });
+
+    it('never forwards /api/<service>/internal/* (service-to-service only) → 404', async () => {
+      for (const path of ['/api/notifications/internal/events', '/api/vehicles/internal/x']) {
+        const withKey = await request(gateway).post(path).set('x-api-key', API_KEY).send({});
+        const withoutKey = await request(gateway).post(path).send({});
+
+        // The fake services answer every path with 200, so 404 proves nothing was forwarded
+        expect(withKey.status, path).to.equal(404);
+        expect(withKey.body.error.code).to.equal('NOT_FOUND');
+        expect(withoutKey.status, path).to.equal(404);
+      }
+    });
   });
 
   describe('Rate limiting', () => {

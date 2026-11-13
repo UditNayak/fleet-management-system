@@ -74,7 +74,7 @@ Import `postman/fleet-management.postman_collection.json`. The collection variab
 are pre-filled, and the API key is sent automatically on every request that needs it.
 Set `adminEmail` / `adminPassword` to your admin's credentials (defaults match `.env.example`).
 **Login** requests save the JWT into `adminToken` / `driverToken` / `managerToken`, which the other requests use,
-so run the folders in order: **Gateway → Users → Vehicles**.
+so run the folders in order: **Gateway → Users → Vehicles → Notifications**.
 
 The whole collection can also be run from the command line with Newman (in a container, nothing installed locally):
 
@@ -138,6 +138,28 @@ curl -X POST http://localhost:3000/api/vehicles \
   -d '{"registrationNumber":"KA 01 AB 1234","model":"Tata Ace Gold","type":"truck","location":{"lat":12.9756,"lng":77.605}}'
 ```
 
+## SMS Notifications
+
+`notification-service` sends an SMS when a vehicle's status changes (and, later, when a vehicle reports a critical event)
+and keeps a record of every SMS with its delivery status.
+
+```
+PATCH /api/vehicles/:id/status ─► vehicle-service ─► POST notification-service /internal/events
+                                                     (x-internal-token, Docker network only)
+                                                       ├─ recipients: active admins + fleet managers + assigned driver
+                                                       ├─ SMS provider (mock) per recipient
+                                                       └─ Notification record: sent | failed
+```
+
+- **Mock SMS provider:** nothing is really sent; each SMS is written to the log
+  (`docker compose logs notification-service` → `📱 SMS → +91...`). Numbers ending in **`0000`** fail on purpose.
+- The status-change response includes `notifications: { "sent": 2, "failed": 1 }`. If notification-service is down,
+  the status still changes and `notifications` is `null`.
+- **SMS log** (admin, fleet manager): `GET /api/notifications?status=failed&type=status_change&vehicleId=...`,
+  `GET /api/notifications/:id`, `GET /api/notifications/stats`.
+- `/internal/*` endpoints are for service-to-service calls only: they need `INTERNAL_SERVICE_TOKEN`, and the gateway
+  always answers them with 404.
+
 ## Tests
 
 Tests run in Docker against a throw-away MongoDB container (never against Atlas):
@@ -147,12 +169,13 @@ docker compose --profile test run --rm test
 docker compose --profile test down          # stop the test database afterwards
 ```
 
-| File                       | Flow                                    |
-| -------------------------- | --------------------------------------- |
-| `test/01-auth.test.js`     | 1. User login & JWT verification        |
-| `test/02-vehicles.test.js` | 2. Vehicle registration & retrieval     |
-| `test/05-rbac.test.js`     | 5. Role-based access control            |
-| `test/07-gateway.test.js`  | 7. API key verification & rate limiting |
+| File                                  | Flow                                       |
+| ------------------------------------- | ------------------------------------------ |
+| `test/01-auth.test.js`                | 1. User login & JWT verification           |
+| `test/02-vehicles.test.js`            | 2. Vehicle registration & retrieval        |
+| `test/04-status-notification.test.js` | 4. Status update & notification triggering |
+| `test/05-rbac.test.js`                | 5. Role-based access control               |
+| `test/07-gateway.test.js`             | 7. API key verification & rate limiting    |
 
 ## Lint
 

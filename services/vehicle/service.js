@@ -122,13 +122,14 @@ async function changeStatus(id, { status, reason }, actor) {
   }
 
   // A failing side effect (e.g. SMS) must not undo or fail the status change itself
+  let notifications = null;
   try {
-    await hooks.onStatusChanged(vehicle, change);
+    notifications = (await hooks.onStatusChanged(vehicle, change)) ?? null;
   } catch (err) {
-    logger.error(`onStatusChanged failed for ${vehicle.registrationNumber}: ${err.message}`);
+    logger.warn(`Notifications for ${vehicle.registrationNumber} not sent: ${err.message}`);
   }
 
-  return { vehicle, changed: true, change };
+  return { vehicle, changed: true, change, notifications };
 }
 
 async function deleteVehicle(id) {

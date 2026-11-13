@@ -40,6 +40,13 @@ const schema = Joi.object({
   TELEMETRY_SERVICE_URL: serviceUrl('http://telemetry-service:3003'),
   MAPS_SERVICE_URL: serviceUrl('http://maps-service:3004'),
   NOTIFICATION_SERVICE_URL: serviceUrl('http://notification-service:3005'),
+
+  // Service-to-service calls (e.g. vehicle-service → notification-service)
+  INTERNAL_SERVICE_TOKEN: Joi.string().min(32).required(),
+  NOTIFY_TIMEOUT_MS: Joi.number().integer().min(100).default(3000),
+
+  // SMS notifications (only the mock provider for now; Twilio is optional later)
+  SMS_PROVIDER: Joi.string().valid('mock').default('mock'),
 }).unknown(true);
 
 const { value: env, error } = schema.validate(process.env, { abortEarly: false });
@@ -83,5 +90,14 @@ module.exports = {
     telemetry: env.TELEMETRY_SERVICE_URL,
     maps: env.MAPS_SERVICE_URL,
     notifications: env.NOTIFICATION_SERVICE_URL,
+  },
+
+  internal: {
+    token: env.INTERNAL_SERVICE_TOKEN,
+    notifyTimeoutMs: env.NOTIFY_TIMEOUT_MS,
+  },
+
+  sms: {
+    provider: env.SMS_PROVIDER,
   },
 };

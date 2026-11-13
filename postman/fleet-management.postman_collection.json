@@ -96,6 +96,18 @@
     {
       "key": "tempVehicleReg",
       "value": ""
+    },
+    {
+      "key": "nextStatus",
+      "value": ""
+    },
+    {
+      "key": "notificationId",
+      "value": ""
+    },
+    {
+      "key": "unreachableReady",
+      "value": ""
     }
   ],
   "item": [
@@ -1989,6 +2001,417 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "SMS notifications on vehicle status change (flow 4). Self-contained: the folder script logs in and creates demo users + a demo vehicle on first use, so just run the numbered requests in order (select the \"Fleet Local\" environment).",
+      "item": [
+        {
+          "name": "01 · Change vehicle status → SMS sent",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}", "status"]
+            },
+            "description": "Picks a status different from the current one, so the change always happens and SMS are sent. The response shows how many SMS were sent / failed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"{{nextStatus}}\",\n  \"reason\": \"Driver reported brake noise\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Read the current status and choose a different one",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/vehicles/{{vehicleId}}'),",
+                  "  header: { 'x-api-key': pm.variables.replaceIn('{{apiKey}}'), Authorization: pm.variables.replaceIn('Bearer {{adminToken}}') },",
+                  "}, (err, res) => {",
+                  "  const current = err ? 'idle' : res.json().vehicle.status;",
+                  "  pm.collectionVariables.set('nextStatus', current === 'active' ? 'maintenance' : 'active');",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const { changed, notifications } = pm.response.json();",
+                  "pm.test('Status changed', () => pm.expect(changed).to.eql(true));",
+                  "pm.test('SMS sent', () => pm.expect(notifications.sent).to.be.above(0));",
+                  "pm.test('One SMS failed (0000 number)', () => pm.expect(notifications.failed).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 · SMS log (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has records', () => pm.expect(pm.response.json().total).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 · Failed SMS only (fleet manager)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?status=failed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "failed"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const records = pm.response.json().data;",
+                  "pm.test('Only failed records with an error', () => records.forEach((n) => { pm.expect(n.status).to.eql('failed'); pm.expect(n.error).to.be.a('string'); }));",
+                  "if (records.length) pm.collectionVariables.set('notificationId', records[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 · SMS stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "stats"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has counts', () => pm.expect(pm.response.json().byStatus).to.have.keys('sent', 'failed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 · SMS log as driver → 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error code is FORBIDDEN', () => pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 · Internal endpoint via gateway → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/internal/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "internal", "events"]
+            },
+            "description": "Service-to-service endpoints are never exposed by the gateway, even with a valid API key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"status_change\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error code is NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SMS log for one vehicle",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications?vehicleId={{vehicleId}}&type=status_change",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "vehicleId",
+                  "value": "{{vehicleId}}"
+                },
+                {
+                  "key": "type",
+                  "value": "status_change"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get notification by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('notificationId')) {",
+                  "  throw new Error('notificationId is empty: run \"Failed SMS only (fleet manager)\" first (re-importing the collection clears saved variables).');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// ---------------------------------------------------------------------------------------------",
+              "// Auto-setup for this folder: any request below can be run on its own.",
+              "// If a token is missing/expired or there is no demo data yet, it logs in and creates:",
+              "//   demo.manager@fleet.dev (fleet manager), demo.driver@fleet.dev (driver),",
+              "//   demo.unreachable@fleet.dev (fleet manager, phone ending 0000 → its SMS fails on purpose),",
+              "//   vehicle KA01DM2026 assigned to the demo driver.",
+              "// Everything is created only once (409 \"already exists\" is fine). Needs the \"Fleet Local\" environment",
+              "// (or adminEmail / adminPassword collection variables) for the admin login.",
+              "// ---------------------------------------------------------------------------------------------",
+              "const vars = pm.collectionVariables;",
+              "const base = pm.variables.replaceIn('{{baseUrl}}');",
+              "const apiKey = pm.variables.replaceIn('{{apiKey}}');",
+              "",
+              "const send = (method, path, body, token) =>",
+              "  new Promise((resolve, reject) => {",
+              "    const header = { 'x-api-key': apiKey, 'Content-Type': 'application/json' };",
+              "    if (token) header.Authorization = 'Bearer ' + token;",
+              "    const request = { url: base + path, method, header };",
+              "    if (body) request.body = { mode: 'raw', raw: JSON.stringify(body) };",
+              "    pm.sendRequest(request, (err, res) => (err ? reject(err) : resolve({ status: res.code, body: res.json() })));",
+              "  });",
+              "",
+              "// A JWT is still usable if it expires more than a minute from now",
+              "const isValid = (token) => {",
+              "  try {",
+              "    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+              "    return JSON.parse(atob(payload)).exp * 1000 > Date.now() + 60000;",
+              "  } catch (e) {",
+              "    return false;",
+              "  }",
+              "};",
+              "",
+              "const login = async (email, password) => {",
+              "  const res = await send('POST', '/api/users/login', { email, password });",
+              "  if (res.status !== 200) throw new Error('Auto-setup: login failed for ' + email + ' (' + res.status + '). Select the \"Fleet Local\" environment.');",
+              "  return res.body;",
+              "};",
+              "",
+              "const DEMO = {",
+              "  manager: { name: 'Demo Manager', email: 'demo.manager@fleet.dev', password: 'Manager@123', phone: '+919812345678', role: 'fleet_manager' },",
+              "  driver: { name: 'Demo Driver', email: 'demo.driver@fleet.dev', password: 'Driver@123', phone: '+919876543210', role: 'driver' },",
+              "  unreachable: { name: 'Unreachable Manager', email: 'demo.unreachable@fleet.dev', password: 'Manager@123', phone: '+919800000000', role: 'fleet_manager' },",
+              "};",
+              "const DEMO_VEHICLE = 'KA01DM2026';",
+              "",
+              "// Create a user as admin; 409 means it already exists, which is fine",
+              "const ensureUser = async (user, adminToken) => {",
+              "  const res = await send('POST', '/api/users', user, adminToken);",
+              "  if (res.status !== 201 && res.status !== 409) throw new Error('Auto-setup: could not create ' + user.email + ' (' + res.status + ')');",
+              "};",
+              "",
+              "(async () => {",
+              "  if (!isValid(vars.get('adminToken'))) {",
+              "    vars.set('adminToken', (await login(pm.variables.get('adminEmail'), pm.variables.get('adminPassword'))).token);",
+              "  }",
+              "  const adminToken = vars.get('adminToken');",
+              "",
+              "  if (!isValid(vars.get('managerToken'))) {",
+              "    await ensureUser(DEMO.manager, adminToken);",
+              "    vars.set('managerToken', (await login(DEMO.manager.email, DEMO.manager.password)).token);",
+              "  }",
+              "",
+              "  if (!isValid(vars.get('driverToken')) || !vars.get('driverId')) {",
+              "    await ensureUser(DEMO.driver, adminToken);",
+              "    const { token, user } = await login(DEMO.driver.email, DEMO.driver.password);",
+              "    vars.set('driverToken', token);",
+              "    vars.set('driverId', user.id);",
+              "  }",
+              "",
+              "  if (!vars.get('unreachableReady')) {",
+              "    await ensureUser(DEMO.unreachable, adminToken);",
+              "    vars.set('unreachableReady', 'yes');",
+              "  }",
+              "",
+              "  if (!vars.get('vehicleId')) {",
+              "    const created = await send('POST', '/api/vehicles', {",
+              "      registrationNumber: DEMO_VEHICLE, model: 'Tata Ace Gold', type: 'truck', address: 'MG Road, Bengaluru',",
+              "      location: { lat: 12.9756, lng: 77.605 }, assignedDriver: vars.get('driverId'),",
+              "    }, adminToken);",
+              "    if (created.status === 201) {",
+              "      vars.set('vehicleId', created.body.vehicle.id);",
+              "    } else {",
+              "      const found = await send('GET', '/api/vehicles?search=' + DEMO_VEHICLE, null, adminToken);",
+              "      vars.set('vehicleId', found.body.data[0].id);",
+              "    }",
+              "  }",
+              "})().catch((err) => console.error(err.message));"
+            ]
+          }
         }
       ]
     }

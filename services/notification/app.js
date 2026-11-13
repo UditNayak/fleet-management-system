@@ -1,4 +1,7 @@
 const createApp = require('../../shared/createApp');
+const routes = require('./routes');
 
-// Routes for this service are added in a later phase
-module.exports = createApp({ name: 'notification-service' });
+module.exports = createApp({
+  name: 'notification-service',
+  configure: (app) => app.use('/', routes),
+});

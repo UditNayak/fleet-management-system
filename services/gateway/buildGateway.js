@@ -5,6 +5,7 @@ const createRateLimiter = require('./middleware/rateLimit');
 const createServiceProxy = require('./proxy');
 const servicesHealth = require('./servicesHealth');
 const docsRouter = require('./docs');
+const notFound = require('../../shared/middleware/notFound');
 
 /**
  * Builds the API Gateway app. Everything is passed in (instead of read from config)
@@ -39,6 +40,8 @@ function buildGateway({
 
       // Protected API: key check → rate limit → proxy to the matching service
       const api = express.Router();
+      // Service-to-service endpoints are never exposed: answer 404 before even checking the key
+      api.use('/:service/internal', notFound);
       api.use(apiKeyAuth(apiKeys));
       api.use(createRateLimiter(rateLimit));
       services.forEach((service) => api.use(service.path, createServiceProxy(service, timeoutMs)));

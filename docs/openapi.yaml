@@ -29,6 +29,13 @@ info:
 
     Without a token → **401**; with a token but the wrong role → **403 `FORBIDDEN`**.
 
+    ### SMS notifications
+    When a vehicle's status changes, every active **admin**, **fleet manager** and the vehicle's **assigned driver**
+    (with a phone number) gets an SMS through a **mock SMS provider**: nothing is really sent, the SMS is written to
+    the notification-service log. Phone numbers ending in **`0000`** fail on purpose, to demonstrate `failed` records.
+    Every SMS is stored with its delivery status (`sent` / `failed`) and can be read under **Notifications**.
+    Services call each other on `/internal/*` endpoints, which the gateway never exposes (always **404**).
+
     ### Gateway routing
     | Gateway route | Target service |
     |---|---|
@@ -60,6 +67,8 @@ tags:
     description: Registration, login (JWT), profile and admin user management
   - name: Vehicles
     description: Register and manage fleet vehicles, operational status and history (role-based)
+  - name: Notifications
+    description: SMS delivery log (sent / failed) for admins and fleet managers
 paths:
   /health:
     get:
@@ -632,8 +641,10 @@ paths:
       summary: Change the operational status (admin, fleet_manager)
       description: |
         If the status really changes, an entry `{ from, to, reason, changedBy, changedAt }` is added to
-        `statusHistory` and a notification is triggered (SMS to fleet managers, from Phase 5) → `changed: true`.
-        Sending the current status changes nothing → `changed: false`, no history entry, no notification.
+        `statusHistory` and SMS notifications are sent to admins, fleet managers and the assigned driver
+        → `changed: true` plus `notifications: { sent, failed }`.
+        If the notification service is unavailable, the status still changes and `notifications` is `null`.
+        Sending the current status changes nothing → `changed: false`, no history entry, no SMS.
       security:
         - ApiKeyAuth: []
           BearerAuth: []
@@ -667,6 +678,9 @@ paths:
                       reason: Scheduled brake service
                       changedBy: 6730f0c2a1b2c3d4e5f60718
                       changedAt: '2026-11-13T09:30:00.000Z'
+                    notifications:
+                      sent: 2
+                      failed: 1
                 unchanged:
                   value:
                     vehicle:
@@ -682,6 +696,100 @@ paths:
           $ref: '#/components/responses/VehicleForbidden'
         '404':
           $ref: '#/components/responses/VehicleNotFound'
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: SMS log, newest first (admin, fleet_manager)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [sent, failed]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [status_change, critical_event]
+        - name: vehicleId
+          in: query
+          description: Only SMS about this vehicle
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/NotificationForbidden'
+
+  /api/notifications/stats:
+    get:
+      tags: [Notifications]
+      summary: Number of SMS per status and type (admin, fleet_manager)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationStats'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/NotificationForbidden'
+
+  /api/notifications/{id}:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+    get:
+      tags: [Notifications]
+      summary: One SMS record (admin, fleet_manager)
+      security:
+        - ApiKeyAuth: []
+          BearerAuth: []
+      responses:
+        '200':
+          description: The notification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notification:
+                    $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/TokenError'
+        '403':
+          $ref: '#/components/responses/NotificationForbidden'
+        '404':
+          description: No notification with this id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: NOTIFICATION_NOT_FOUND
+                  message: Notification not found
 
 components:
   parameters:
@@ -701,6 +809,14 @@ components:
       schema:
         type: string
         example: 6731a0c2a1b2c3d4e5f60718
+    NotificationId:
+      name: id
+      in: path
+      required: true
+      description: Notification id (24-character hex)
+      schema:
+        type: string
+        example: 6731b5e2a1b2c3d4e5f60799
     Page:
       name: page
       in: query
@@ -942,6 +1058,16 @@ components:
                 error:
                   code: INVALID_DRIVER
                   message: assignedDriver must be an existing, active user with the driver role
+    NotificationForbidden:
+      description: Drivers cannot read the SMS log
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: 'This action requires one of these roles: admin, fleet_manager'
 
   schemas:
     Health:
@@ -1290,6 +1416,109 @@ components:
           type: boolean
         change:
           $ref: '#/components/schemas/StatusChange'
+        notifications:
+          type: object
+          nullable: true
+          description: SMS sent for this change; `null` if the notification service was unavailable
+          properties:
+            sent:
+              type: integer
+              example: 2
+            failed:
+              type: integer
+              example: 1
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 6731b5e2a1b2c3d4e5f60799
+        type:
+          type: string
+          enum: [status_change, critical_event]
+        vehicle:
+          type: string
+          description: Vehicle id
+        vehicleRegistration:
+          type: string
+          example: KA01AB1234
+        recipientUser:
+          type: string
+          description: User id
+        recipientRole:
+          $ref: '#/components/schemas/Role'
+        recipientPhone:
+          type: string
+          example: '+919812345678'
+        message:
+          type: string
+          example: '[Fleet] KA01AB1234 status: idle -> maintenance (Scheduled brake service)'
+        provider:
+          type: string
+          example: mock
+        providerMessageId:
+          type: string
+          description: Only when sent
+          example: MOCK-72bb0ebc-729a-43fa-a95e-ae2734c1d2f0
+        status:
+          type: string
+          enum: [sent, failed]
+        error:
+          type: string
+          description: Only when failed
+          example: 'Mock SMS: number unreachable'
+        details:
+          type: object
+          description: 'Event data: `{ from, to, reason }` for a status change, `{ event, location }` for a critical event'
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    NotificationList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 8
+    NotificationStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 8
+        byStatus:
+          type: object
+          properties:
+            sent:
+              type: integer
+              example: 6
+            failed:
+              type: integer
+              example: 2
+        byType:
+          type: object
+          properties:
+            status_change:
+              type: integer
+              example: 8
+            critical_event:
+              type: integer
+              example: 0
     Error:
       type: object
       properties:

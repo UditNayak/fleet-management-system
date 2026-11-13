@@ -11,7 +11,7 @@ async function createUserWithToken(role = 'driver', overrides = {}) {
   const user = await createUser({
     name: `Test ${role} ${counter}`,
     email: `${role}${counter}@test.dev`,
-    phone: '+919000000001',
+    phone: `+9190000${String(counter).padStart(5, '0')}`, // unique per user
     role,
     ...overrides,
     password,
