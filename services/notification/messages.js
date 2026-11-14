@@ -1,5 +1,4 @@
-// SMS texts. Kept short (one SMS = 160 characters) and ASCII-only: a single character like "→"
-// switches an SMS to Unicode encoding, which cuts the limit to 70 characters.
+// Short and ASCII-only: one non-ASCII character cuts the SMS limit from 160 to 70
 const MAX_LENGTH = 160;
 
 const EVENT_LABELS = {

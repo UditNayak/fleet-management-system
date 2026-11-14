@@ -9,7 +9,7 @@ const { CRITICAL_EVENTS } = Telemetry;
 const { toPoint } = Vehicle;
 const logger = createLogger('telemetry-service');
 
-// Loads the vehicle and checks the caller may use it: drivers only their assigned vehicle
+// Loads the vehicle; drivers may only use their assigned one
 async function loadVehicleFor(actor, vehicleId) {
   const vehicle = await Vehicle.findById(vehicleId).select('registrationNumber assignedDriver');
   if (!vehicle) throw new AppError(404, 'VEHICLE_NOT_FOUND', 'Vehicle not found');
@@ -31,7 +31,7 @@ function addDateRange(filter, from, to) {
 }
 
 async function raiseAlert(vehicle, telemetry) {
-  // Cooldown: one SMS per vehicle + event per window, however many readings repeat it
+  // Cooldown: one SMS per vehicle + event per window
   const since = new Date(Date.now() - config.telemetry.alertCooldownMs);
   const alertedRecently = await Telemetry.exists({
     vehicle: vehicle._id,
@@ -42,7 +42,7 @@ async function raiseAlert(vehicle, telemetry) {
     return { notified: false, reason: 'cooldown' };
   }
 
-  // A failing SMS must never fail the reading itself
+  // An SMS failure must not fail the reading
   let notifications = null;
   try {
     notifications = (await hooks.onCriticalEvent(vehicle, telemetry)) ?? null;
@@ -50,7 +50,7 @@ async function raiseAlert(vehicle, telemetry) {
     logger.warn(`Alert for ${vehicle.registrationNumber} not sent: ${err.message}`);
   }
 
-  // Only a delivered alert starts the cooldown, so the next reading retries after a failure
+  // Cooldown only starts after a delivered alert
   if (notifications) {
     telemetry.alertSentAt = new Date();
     await telemetry.save();
@@ -73,8 +73,7 @@ async function recordTelemetry(
     reportedBy: actor.id,
   });
 
-  // Move the vehicle only if this reading is newer than what we already know.
-  // The condition is part of the update, so it's atomic; `$not: { $gte }` also matches "never seen".
+  // Only move the vehicle if this reading is newer (condition is part of the update, so atomic)
   const { modifiedCount } = await Vehicle.updateOne(
     { _id: vehicle._id, lastSeenAt: { $not: { $gte: recordedAt } } },
     { $set: { location: point, locationSource: 'telemetry', lastSeenAt: recordedAt } },
@@ -114,7 +113,7 @@ async function listCriticalEvents({ event, vehicleId, from, to, page, limit }) {
       .sort({ recordedAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate('vehicle', 'registrationNumber'), // fetch the registration number for display
+      .populate('vehicle', 'registrationNumber'),
     Telemetry.countDocuments(filter),
   ]);
 
@@ -122,7 +121,7 @@ async function listCriticalEvents({ event, vehicleId, from, to, page, limit }) {
   const data = docs.map((doc) => ({
     ...doc.toJSON(),
     vehicle: (doc.populated('vehicle') ?? doc.vehicle).toString(),
-    vehicleRegistration: doc.vehicle?.registrationNumber ?? null, // null if the vehicle was deleted
+    vehicleRegistration: doc.vehicle?.registrationNumber ?? null, // vehicle deleted
   }));
   return { data, page, limit, total };
 }

@@ -1,11 +1,8 @@
 const User = require('../../shared/models/User');
 
-/**
- * Who gets an SMS for this event:
- *  - status_change:  admins + fleet managers + the vehicle's assigned driver
- *  - critical_event: admins + fleet managers ("fleet administrators")
- * Only active users with a phone. One SMS per phone number, even if two accounts share it.
- */
+// status_change: admins, fleet managers, assigned driver
+// critical_event: admins, fleet managers
+// Active users with a phone only, one SMS per number
 async function findRecipients({ type, vehicle }) {
   const who = [{ role: { $in: ['admin', 'fleet_manager'] } }];
   if (type === 'status_change' && vehicle.assignedDriver) {

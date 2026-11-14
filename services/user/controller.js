@@ -1,6 +1,6 @@
 const service = require('./service');
 
-// Controllers only translate HTTP ↔ service calls; validation already happened in middleware
+// Validation runs in middleware; controllers just call the service
 
 async function register(req, res) {
   const user = await service.register(req.body);

@@ -1,20 +1,13 @@
-/**
- * Live telemetry simulator: drives 3 seeded Bangalore vehicles around short loops.
- *   docker compose --profile tools run --rm simulate      (Ctrl+C to stop)
- *
- * Like real tracking devices, it posts readings straight to telemetry-service on the Docker network
- * (not through the gateway, so the dashboard's API-key rate limit isn't used up).
- * One vehicle's battery runs low after about a minute → low_battery → SMS alert (5-min cooldown).
- *
- * Env: SIM_INTERVAL_MS (5000), SIM_TICKS (0 = until stopped), SIM_ALERT (true), SIM_SPEEDUP (10)
- */
+// Live telemetry simulator: docker compose --profile tools run --rm simulate
+// Posts straight to telemetry-service like a tracking device would (not via the gateway).
+// Env: SIM_INTERVAL_MS, SIM_TICKS (0 = forever), SIM_ALERT, SIM_SPEEDUP
 const config = require('../shared/config');
 const { advance, drainBattery } = require('./simulator');
 
 const INTERVAL_MS = Number(process.env.SIM_INTERVAL_MS ?? 5000);
 const MAX_TICKS = Number(process.env.SIM_TICKS ?? 0);
 const ALERTS = process.env.SIM_ALERT !== 'false';
-// Moves vehicles faster than real time so they visibly move on the map every refresh
+// Faster than real time so the pins visibly move
 const SPEEDUP = Number(process.env.SIM_SPEEDUP ?? 10);
 
 const p = (lat, lng) => ({ lat, lng });
@@ -136,7 +129,7 @@ async function tickOnce(tick) {
     try {
       await report(vehicle, tick);
     } catch (err) {
-      if (err.status === 401) await login(); // token expired → log in again, next tick continues
+      if (err.status === 401) await login(); // token expired
       stats.errors += 1;
       console.error(`#${tick} ${vehicle.reg} failed: ${err.message}`);
     }
@@ -164,7 +157,7 @@ async function main() {
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
-    if (stopping) process.exit(130); // second Ctrl+C: quit immediately
+    if (stopping) process.exit(130); // second Ctrl+C
     stopping = true;
     console.log('\nStopping after this tick…');
   });

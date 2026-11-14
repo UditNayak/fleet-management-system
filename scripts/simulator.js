@@ -1,7 +1,4 @@
-/**
- * Pure helpers for the telemetry simulator (no I/O, so they are easy to unit-test).
- * A route is a closed loop of { lat, lng } waypoints; a vehicle moves along it leg by leg.
- */
+// Movement and battery maths for the simulator (no I/O, unit-tested)
 
 const EARTH_RADIUS_KM = 6371;
 const rad = (deg) => (deg * Math.PI) / 180;
@@ -16,7 +13,7 @@ function distanceKm(a, b) {
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 
-// Compass direction from a to b: 0 = north, 90 = east (0 ≤ heading < 360)
+// Compass bearing from a to b (0 = north, 90 = east)
 function bearing(a, b) {
   const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat));
   const x =
@@ -31,11 +28,7 @@ const interpolate = (a, b, t) => ({
   lng: a.lng + (b.lng - a.lng) * t,
 });
 
-/**
- * Moves `km` further along the route.
- * state: { leg, progress } — on leg `leg` (route[leg] → route[leg + 1]), `progress` 0..1 of the way.
- * Returns the new { leg, progress, position, heading }.
- */
+// Moves `km` along the route. state = { leg, progress 0..1 }
 function advance(route, { leg, progress }, km) {
   let remaining = km;
   let currentLeg = leg;
@@ -58,15 +51,12 @@ function advance(route, { leg, progress }, km) {
       };
     }
     remaining -= leftOnLeg;
-    currentLeg = (currentLeg + 1) % route.length; // a loop: after the last waypoint comes the first
+    currentLeg = (currentLeg + 1) % route.length; // loop back to the start
     currentProgress = 0;
   }
 }
 
-/**
- * Drains the battery by `drain` %. Crossing below `low` reports a low_battery event (once);
- * at `recharge` or less the vehicle is "charged" back to `full`.
- */
+// Drains the battery; reports low_battery once when it drops below `low`
 function drainBattery(level, drain, { low = 15, recharge = 5, full = 95 } = {}) {
   const next = level - drain;
   const event = level >= low && next < low ? 'low_battery' : 'none';

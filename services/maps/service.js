@@ -19,7 +19,7 @@ const toMapVehicle = (doc) => ({
 
 const round = (value, decimals) => Number(value.toFixed(decimals));
 
-// Called through the object (not destructured) so tests can stub geocoder.search / reverse
+// Not destructured, so tests can stub it
 const geocode = (address) => geocoder.search(address);
 const reverseGeocode = (lat, lng) => geocoder.reverse(lat, lng);
 
@@ -30,8 +30,7 @@ async function findNearby({ lat, lng, address, radiusKm, status, type, limit }) 
   if (status) query.status = status;
   if (type) query.type = type;
 
-  // $geoNear must be the first stage. It uses the 2dsphere index, skips vehicles without a
-  // location, adds the distance in metres and returns the nearest first.
+  // $geoNear must be the first stage; uses the 2dsphere index, nearest first
   const docs = await Vehicle.aggregate([
     {
       $geoNear: {

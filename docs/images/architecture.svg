@@ -1,0 +1,96 @@
+<svg viewBox="-10 -10 1020 580" width="1020" height="580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="System architecture">
+  <style>
+text{text-anchor:middle;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+.box{fill:#fff;stroke:#1f3a5f;stroke-width:1.5}.box-accent{fill:#1f3a5f;stroke:#1f3a5f}
+.box-ext{fill:#eef6f3;stroke:#0e7c66;stroke-width:1.5}.box-err{fill:#fef3f2;stroke:#b42318;stroke-width:1.3}
+.boundary{fill:#f5f7fa;stroke:#98a2b3;stroke-width:1.2;stroke-dasharray:6 4}.db{fill:#e9eef5;stroke:#1f3a5f;stroke-width:1.5}
+.ln{fill:none;stroke:#1f3a5f;stroke-width:1.5}.ln-ext{fill:none;stroke:#0e7c66;stroke-width:1.5}
+.ln-err{fill:none;stroke:#b42318;stroke-width:1.3;stroke-dasharray:4 3}
+.tb{font-size:14px;font-weight:600;fill:#101828}.ts{font-size:11.5px;fill:#475467}
+.tm{font-size:10.5px;font-family:Menlo,Consolas,monospace;fill:#1f3a5f}.tw{fill:#fff}.tw2{fill:#c7d4e4}
+.terr{fill:#b42318}.tlabel{font-size:11px;fill:#667085;font-style:italic}.tleft{text-anchor:start}
+</style>
+  <rect x="-10" y="-10" width="1020" height="580" rx="12" fill="#ffffff"/>
+  <defs>
+    <marker id="ah-arch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f3a5f"/></marker>
+    <marker id="ah-arch-ext" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0e7c66"/></marker>
+  </defs>
+
+  <!-- clients -->
+  <rect class="box-ext" x="290" y="10" width="190" height="50" rx="8"/>
+  <text class="tb" x="385" y="40">Browser · map dashboard</text>
+  <rect class="box-ext" x="520" y="10" width="190" height="50" rx="8"/>
+  <text class="tb" x="615" y="40">Postman / Swagger UI</text>
+
+  <!-- docker network -->
+  <rect class="boundary" x="150" y="78" width="700" height="290" rx="12"/>
+  <text class="tlabel tleft" x="164" y="98">Docker Compose network</text>
+
+  <line class="ln" x1="385" y1="60" x2="385" y2="113" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="615" y1="60" x2="615" y2="113" marker-end="url(#ah-arch)"/>
+  <text class="tlabel" x="500" y="95">HTTP · x-api-key · JWT</text>
+
+  <!-- gateway -->
+  <rect class="box-accent" x="180" y="115" width="640" height="80" rx="8"/>
+  <text class="tb tw" x="500" y="142">API Gateway  ·  port 3000 (the only published port)</text>
+  <text class="ts tw2" x="500" y="163">API key check → rate limit → route &amp; forward → 503 / 504 if a service fails</text>
+  <text class="ts tw2" x="500" y="182">also serves Swagger UI (/api-docs) and the map dashboard (/)</text>
+
+  <!-- gateway → services -->
+  <line class="ln" x1="228" y1="195" x2="228" y2="253" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="364" y1="195" x2="364" y2="253" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="500" y1="195" x2="500" y2="253" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="636" y1="195" x2="636" y2="253" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="772" y1="195" x2="772" y2="253" marker-end="url(#ah-arch)"/>
+
+  <!-- services -->
+  <rect class="box" x="170" y="255" width="116" height="80" rx="8"/>
+  <text class="tb" x="228" y="282">Notification</text>
+  <text class="ts" x="228" y="300">service · 3005</text>
+  <text class="tm" x="228" y="321">/api/notifications</text>
+
+  <rect class="box" x="306" y="255" width="116" height="80" rx="8"/>
+  <text class="tb" x="364" y="282">User</text>
+  <text class="ts" x="364" y="300">service · 3001</text>
+  <text class="tm" x="364" y="321">/api/users</text>
+
+  <rect class="box" x="442" y="255" width="116" height="80" rx="8"/>
+  <text class="tb" x="500" y="282">Vehicle</text>
+  <text class="ts" x="500" y="300">service · 3002</text>
+  <text class="tm" x="500" y="321">/api/vehicles</text>
+
+  <rect class="box" x="578" y="255" width="116" height="80" rx="8"/>
+  <text class="tb" x="636" y="282">Telemetry</text>
+  <text class="ts" x="636" y="300">service · 3003</text>
+  <text class="tm" x="636" y="321">/api/telemetry</text>
+
+  <rect class="box" x="714" y="255" width="116" height="80" rx="8"/>
+  <text class="tb" x="772" y="282">Maps</text>
+  <text class="ts" x="772" y="300">service · 3004</text>
+  <text class="tm" x="772" y="321">/api/maps</text>
+
+  <!-- third-party -->
+  <rect class="box-ext" x="10" y="265" width="125" height="60" rx="8"/>
+  <text class="tb" x="72" y="291">Mock SMS</text>
+  <text class="ts" x="72" y="309">provider (stub)</text>
+  <line class="ln-ext" x1="170" y1="295" x2="137" y2="295" marker-end="url(#ah-arch-ext)"/>
+
+  <rect class="box-ext" x="865" y="265" width="125" height="60" rx="8"/>
+  <text class="tb" x="927" y="291">OpenStreetMap</text>
+  <text class="ts" x="927" y="309">Nominatim API</text>
+  <line class="ln-ext" x1="830" y1="295" x2="863" y2="295" marker-end="url(#ah-arch-ext)"/>
+
+  <!-- database -->
+  <line class="ln" x1="228" y1="335" x2="228" y2="410" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="364" y1="335" x2="364" y2="406" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="500" y1="335" x2="500" y2="404" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="636" y1="335" x2="636" y2="406" marker-end="url(#ah-arch)"/>
+  <line class="ln" x1="772" y1="335" x2="772" y2="410" marker-end="url(#ah-arch)"/>
+  <path class="db" d="M170 420 v66 a330 14 0 0 0 660 0 v-66"/>
+  <ellipse class="db" cx="500" cy="420" rx="330" ry="14"/>
+  <text class="tb" x="500" y="458">MongoDB Atlas · fleet_db</text>
+  <text class="ts" x="500" y="477">users · vehicles (2dsphere location index) · telemetry · notifications</text>
+
+  <text class="tlabel" x="500" y="528">Service-to-service calls stay inside the Docker network: vehicle → maps (geocode an address),</text>
+  <text class="tlabel" x="500" y="546">vehicle and telemetry → notification (send SMS).</text>
+</svg>

@@ -4,13 +4,7 @@ const { connectDB, disconnectDB } = require('./db');
 
 const SHUTDOWN_TIMEOUT_MS = 10000;
 
-/**
- * @param {object}   options
- * @param {string}   options.name
- * @param {boolean}  [options.useDb]
- * @param {Function} [options.onReady] async () => void, runs after the DB connects and before listening
- *                                     (e.g. creating the bootstrap admin)
- */
+// onReady runs after the DB connects, before listening (e.g. bootstrap admin)
 async function startServer(app, { name, useDb = true, onReady }) {
   const logger = createLogger(name);
 
@@ -24,7 +18,7 @@ async function startServer(app, { name, useDb = true, onReady }) {
 
   const server = app.listen(config.port, () => logger.info(`Listening on port ${config.port}`));
 
-  // Stop accepting new requests, let in-flight ones finish, then close the DB connection
+  // Graceful shutdown: finish in-flight requests, then close the DB
   const shutdown = (signal) => {
     logger.info(`${signal} received, shutting down`);
     server.close(async () => {

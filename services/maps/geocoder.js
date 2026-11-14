@@ -5,7 +5,7 @@ const { createLogger } = require('../../shared/logger');
 const logger = createLogger('maps-service');
 
 const MIN_INTERVAL_MS = 1000; // Nominatim usage policy: at most 1 request per second
-const MAX_ATTEMPTS = 2; // first try + one retry after a network error / timeout
+const MAX_ATTEMPTS = 2; // one retry on network error / timeout
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500;
 
@@ -17,11 +17,8 @@ const unavailable = () =>
     'The geocoding service is unavailable, try again later',
   );
 
-/**
- * Builds a polite Nominatim client: it identifies itself (User-Agent), waits ≥ 1 s between
- * calls, caches answers and maps every failure to a clean AppError.
- * Options are injectable so tests can pass a fake fetch and a shorter interval.
- */
+// Nominatim client: User-Agent, max 1 req/s, cache, errors mapped to AppError.
+// Options are injectable for tests.
 function createGeocoder({
   baseUrl = config.geocoder.baseUrl,
   userAgent = config.geocoder.userAgent,
@@ -30,10 +27,10 @@ function createGeocoder({
   minIntervalMs = MIN_INTERVAL_MS,
   fetchFn = (...args) => fetch(...args),
 } = {}) {
-  const cache = new Map(); // key → { value, expiresAt }; a Map keeps insertion order (oldest first)
+  const cache = new Map(); // key → { value, expiresAt }, oldest first
   let nextSlot = 0; // earliest time the next request may start
 
-  // Reserve the next free slot synchronously, so concurrent callers queue up instead of racing
+  // Reserve the slot synchronously so concurrent calls queue up
   async function throttle() {
     const now = Date.now();
     const startAt = Math.max(now, nextSlot);
@@ -53,8 +50,7 @@ function createGeocoder({
     cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
   }
 
-  // The public Nominatim server sometimes stalls for a few seconds, so a network error or
-  // timeout is retried once (still throttled). HTTP errors like 429 are never retried.
+  // Nominatim sometimes stalls: retry once on network error/timeout, never on HTTP errors
   async function fetchWithRetry(url) {
     for (let attempt = 1; ; attempt += 1) {
       await throttle();
@@ -77,7 +73,7 @@ function createGeocoder({
 
     const res = await fetchWithRetry(url);
     if (!res.ok) {
-      logger.warn(`Nominatim answered ${res.status}`); // 429 (rate limited), 5xx, …
+      logger.warn(`Nominatim answered ${res.status}`); // 429, 5xx, …
       throw unavailable();
     }
     try {
@@ -131,7 +127,7 @@ function createGeocoder({
   return { search, reverse };
 }
 
-// The service uses one shared instance (one cache, one queue); tests stub its methods
+// One shared instance (one cache, one queue)
 const geocoder = createGeocoder();
 
 module.exports = geocoder;

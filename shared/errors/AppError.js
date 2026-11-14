@@ -1,5 +1,4 @@
-// An expected, client-facing error (validation, not found, forbidden...).
-// Throw it anywhere in a route; the central error handler turns it into JSON.
+// Expected client error; the error handler turns it into JSON
 class AppError extends Error {
   constructor(status, code, message, details) {
     super(message);

@@ -10,15 +10,12 @@ const COLORS = {
   inactive: '#6b7280',
 };
 
-/**
- * The Map tab: every vehicle as a coloured pin, nearby search (click or address) with a radius
- * circle, and status changes from the popup for admins / fleet managers.
- */
+// Map tab: vehicle pins, nearby search, status changes
 export function createMapPage({ canManage }) {
   const map = L.map('map').setView(BANGALORE, 12);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    referrerPolicy: 'strict-origin-when-cross-origin', // OSM requires a Referer on tile requests
+    referrerPolicy: 'strict-origin-when-cross-origin', // OSM needs a Referer
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
@@ -197,7 +194,7 @@ export function createMapPage({ canManage }) {
   async function runNearby(query, { fit = true } = {}) {
     try {
       const result = await api('/api/maps/nearby', { query: { ...query, radiusKm: radiusKm() } });
-      // Remember the centre as coordinates, so refreshes don't geocode the address again
+      // Keep the centre as coordinates so refreshes don't geocode again
       search = {
         lat: result.center.lat,
         lng: result.center.lng,
@@ -259,7 +256,7 @@ export function createMapPage({ canManage }) {
 
   return {
     refresh,
-    // Leaflet measures its container; call after the tab becomes visible again
+    // Leaflet needs this after the tab is shown again
     activate: () => map.invalidateSize(),
     focus(location) {
       map.setView([location.lat, location.lng], 15);

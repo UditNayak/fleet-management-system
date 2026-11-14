@@ -12,7 +12,7 @@ let pages = {};
 let currentTab = 'map';
 let timer = null;
 
-// ---------- polling: only while the browser tab is visible (saves the API key's rate limit) ----------
+// ---------- polling (only while the tab is visible) ----------
 async function refreshCurrent() {
   try {
     await pages[currentTab]?.refresh();
@@ -65,7 +65,7 @@ function startApp() {
   $('#user-name').textContent = user.name;
   $('#user-role').textContent = humanize(user.role);
 
-  // Hide tabs this role can't use (the API would answer 403 anyway)
+  // Hide tabs this role can't use
   document.querySelectorAll('#tabs button').forEach((button) => {
     const roles = button.dataset.roles?.split(' ');
     button.hidden = Boolean(roles && !roles.includes(user.role));
@@ -91,7 +91,7 @@ function startApp() {
 function logout(message) {
   stopPolling();
   session.clear();
-  // A fresh page load gives the next user clean state (map, listeners, role)
+  // Reload for a clean state
   try {
     if (message) sessionStorage.setItem('fleet-logout-message', message);
   } catch {

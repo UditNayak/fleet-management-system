@@ -2,11 +2,7 @@ const AppError = require('../errors/AppError');
 
 const PARTS = ['params', 'query', 'body'];
 
-/**
- * Validates request parts with Joi schemas and replaces them with the cleaned values
- * (trimmed strings, converted numbers, defaults applied).
- *   validate({ params: idSchema, body: updateSchema })
- */
+// Validates params/query/body with Joi and replaces them with the cleaned values
 function validate(schemas) {
   return (req, _res, next) => {
     const details = [];

@@ -3,8 +3,7 @@ const { createLogger } = require('../../../shared/logger');
 
 const logger = createLogger('mock-sms');
 
-// Pretends to be an SMS gateway: nothing leaves the machine, the "SMS" is written to the log.
-// Numbers ending in 0000 fail on purpose, so failed deliveries can be demonstrated and tested.
+// Fake SMS gateway: just logs the message. Numbers ending in 0000 fail (for testing).
 const mockSms = {
   name: 'mock',
 

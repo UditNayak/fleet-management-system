@@ -7,8 +7,7 @@ const { authorize } = require('../../shared/middleware/rbac');
 
 const router = express.Router();
 
-// Every role may report and read history; the service additionally limits drivers
-// to their own vehicle (an ownership check, which a role check alone can't express)
+// All roles; the service limits drivers to their own vehicle
 router.post('/', authenticate, validate({ body: v.createTelemetryBody }), controller.record);
 router.get(
   '/vehicle/:vehicleId',

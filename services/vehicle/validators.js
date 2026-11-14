@@ -21,8 +21,7 @@ const year = Joi.number()
 const address = Joi.string().trim().max(200);
 const status = Joi.string().valid(...VEHICLE_STATUSES);
 
-// `status` is deliberately not accepted here: new vehicles start idle,
-// and every later change goes through PATCH /:id/status so it is recorded and notified.
+// No `status` here: it only changes via PATCH /:id/status (history + SMS)
 const createVehicleBody = Joi.object({
   registrationNumber: registrationNumber.required(),
   model: model.required(),

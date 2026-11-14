@@ -4,7 +4,7 @@ const mapsClient = require('../../shared/clients/mapsClient');
 
 const logger = createLogger('vehicle-service');
 
-// Side effects triggered by vehicle events. Kept in one object so tests can replace them.
+// Side effects, in one object so tests can stub them
 const hooks = {
   // Asks notification-service to SMS the relevant users; returns its { sent, failed } summary
   async onStatusChanged(vehicle, change) {

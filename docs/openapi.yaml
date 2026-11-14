@@ -1714,7 +1714,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Last telemetry update (Phase 6)
+          description: Last telemetry update
         assignedDriver:
           type: string
           nullable: true

@@ -18,7 +18,7 @@ const actions = {
   delete: (id, auth) => request(app).delete(`/${id}`).set(auth),
 };
 
-// Expected status code per role and action (spec: phase 4, flow 5)
+// Expected status per role and action
 const matrix = {
   none: { create: 401, list: 401, get: 401, update: 401, status: 401, delete: 401 },
   driver: { create: 403, list: 200, get: 200, update: 403, status: 403, delete: 403 },

@@ -1,13 +1,5 @@
-/**
- * Demo data for the dashboard, Postman and the screencast:
- *   docker compose --profile tools run --rm seed
- *
- * - demo users (fleet manager, driver, a manager whose SMS always fails) — created only if missing
- * - KA01DM2026 (assigned to the demo driver) and KA01DM2027 — created only if missing
- * - 9 vehicles at real Bangalore places — upserted, so re-running resets their position and status
- *
- * Idempotent, and it never touches the admin or any other user / vehicle.
- */
+// Demo data: docker compose --profile tools run --rm seed
+// Safe to re-run; only touches the demo users and vehicles.
 const config = require('../shared/config');
 const { connectDB, disconnectDB } = require('../shared/db');
 const User = require('../shared/models/User');
@@ -16,7 +8,7 @@ const { createUser } = require('../services/user/service');
 
 const { toPoint } = Vehicle;
 
-// Same accounts the Postman auto-setup creates (passwords are demo-only and documented in the README)
+// Same demo accounts as the Postman auto-setup
 const DEMO_USERS = [
   {
     name: 'Demo Manager',
@@ -32,7 +24,7 @@ const DEMO_USERS = [
     phone: '+919876543210',
     role: 'driver',
   },
-  // phone ending in 0000 → the mock SMS provider fails on purpose (shows "failed" in the SMS log)
+  // ends in 0000 → mock SMS fails (shows up as failed in the SMS log)
   {
     name: 'Unreachable Manager',
     email: 'demo.unreachable@fleet.dev',
@@ -44,7 +36,7 @@ const DEMO_USERS = [
 
 const MG_ROAD = { address: 'MG Road, Bengaluru', location: toPoint({ lat: 12.9756, lng: 77.605 }) };
 
-// [registration, model, type, status, place, lat, lng] — distance from MG Road (12.9756, 77.6050)
+// [registration, model, type, status, place, lat, lng], distance from MG Road
 const DEMO_VEHICLES = [
   ['KA01DM2028', 'Tata Ace Gold', 'truck', 'active', 'MG Road', 12.9756, 77.6066], // 0.2 km
   ['KA01DM2029', 'Maruti Suzuki Eeco', 'van', 'idle', 'Cubbon Park', 12.9763, 77.5929], // 1.3 km
@@ -65,7 +57,7 @@ const DEMO_VEHICLES = [
   lng,
 }));
 
-// Creates missing demo users; existing ones (and their passwords) are left alone
+// Creates missing demo users only
 async function seedUsers() {
   const rows = [];
   for (const user of DEMO_USERS) {
@@ -81,7 +73,7 @@ async function seedUsers() {
   console.table(rows);
 }
 
-// The Postman demo vehicles: only created when missing, so their status / position history is kept
+// Postman demo vehicles, created only if missing
 async function seedPostmanVehicles() {
   const driver = await User.findOne({ email: 'demo.driver@fleet.dev' }).select('_id');
   const vehicles = [
@@ -121,7 +113,7 @@ async function seed() {
             location: toPoint({ lat: v.lat, lng: v.lng }),
             locationSource: 'manual',
           },
-          $unset: { lastSeenAt: '' }, // forget simulator / telemetry positions
+          $unset: { lastSeenAt: '' }, // clear old simulator positions
         },
         { upsert: true, runValidators: true },
       );

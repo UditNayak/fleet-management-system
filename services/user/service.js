@@ -5,8 +5,7 @@ const User = require('../../shared/models/User');
 const AppError = require('../../shared/errors/AppError');
 const { signToken } = require('../../shared/auth/jwt');
 
-// Compared against when the email doesn't exist, so a login takes the same time either way
-// and response timing can't reveal which emails are registered.
+// Dummy hash so a login with an unknown email takes the same time
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', config.bcryptRounds);
 
 const invalidCredentials = () =>

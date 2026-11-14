@@ -1,8 +1,7 @@
 import { api, session } from './api.js';
 import { $ } from './ui.js';
 
-// Demo accounts created by `docker compose --profile tools run --rm seed` (and by the Postman auto-setup).
-// The admin is deliberately not listed: its credentials stay in .env.
+// Demo accounts from the seed script (admin not listed on purpose)
 const DEMO_ACCOUNTS = {
   manager: { email: 'demo.manager@fleet.dev', password: 'Manager@123' },
   driver: { email: 'demo.driver@fleet.dev', password: 'Driver@123' },

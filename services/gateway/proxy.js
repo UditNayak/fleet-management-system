@@ -11,11 +11,8 @@ function sendError(res, status, code, message, details) {
   res.status(status).json({ error: { code, message, ...(details && { details }) } });
 }
 
-/**
- * Forwards requests to one backend service.
- * Mounted at e.g. /api/vehicles, so Express has already stripped that prefix from req.url:
- *   GET /api/vehicles/42?x=1  →  GET {target}/42?x=1
- */
+// Forwards to one service. Express already stripped the mount path:
+// /api/vehicles/42 → {target}/42
 function createServiceProxy({ name, target }, timeoutMs) {
   return createProxyMiddleware({
     target,

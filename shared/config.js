@@ -5,7 +5,7 @@ const serviceUrl = (defaultUrl) =>
     .uri({ scheme: ['http', 'https'] })
     .default(defaultUrl);
 
-// Validate environment variables once at startup so misconfiguration fails fast and loudly.
+// Validate env vars at startup (fail fast)
 const schema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   LOG_LEVEL: Joi.string().valid('debug', 'info', 'warn', 'error', 'silent').default('info'),
@@ -28,37 +28,37 @@ const schema = Joi.object({
     .default('1h'),
   BCRYPT_ROUNDS: Joi.number().integer().min(4).max(15).default(10),
 
-  // Bootstrap admin, created by user-service on first start if no admin exists
+  // Bootstrap admin, created on first start if none exists
   ADMIN_NAME: Joi.string().default('Fleet Admin'),
   ADMIN_EMAIL: Joi.string().email(),
   ADMIN_PASSWORD: Joi.string().min(8),
   ADMIN_PHONE: Joi.string().pattern(/^\+[1-9]\d{7,14}$/, 'E.164 phone number'),
 
-  // Service locations (Docker Compose service names resolve as hostnames)
+  // Service URLs (Docker Compose service names)
   USER_SERVICE_URL: serviceUrl('http://user-service:3001'),
   VEHICLE_SERVICE_URL: serviceUrl('http://vehicle-service:3002'),
   TELEMETRY_SERVICE_URL: serviceUrl('http://telemetry-service:3003'),
   MAPS_SERVICE_URL: serviceUrl('http://maps-service:3004'),
   NOTIFICATION_SERVICE_URL: serviceUrl('http://notification-service:3005'),
 
-  // Service-to-service calls (e.g. vehicle-service → notification-service)
+  // Token for service-to-service calls
   INTERNAL_SERVICE_TOKEN: Joi.string().min(32).required(),
   NOTIFY_TIMEOUT_MS: Joi.number().integer().min(100).default(3000),
 
-  // SMS notifications (only the mock provider for now; Twilio is optional later)
+  // SMS (mock provider only)
   SMS_PROVIDER: Joi.string().valid('mock').default('mock'),
 
-  // Telemetry: minimum time between two SMS alerts for the same vehicle + event
+  // Min time between two SMS alerts for the same vehicle + event
   ALERT_COOLDOWN_MS: Joi.number()
     .integer()
     .min(0)
     .default(5 * 60 * 1000),
 
-  // Geocoding with OpenStreetMap Nominatim (free, no API key; usage policy: identify the app, max 1 req/s)
+  // OpenStreetMap Nominatim (free, no key, max 1 req/s)
   NOMINATIM_URL: serviceUrl('https://nominatim.openstreetmap.org'),
   NOMINATIM_USER_AGENT: Joi.string().min(3).default('fleet-management-system/1.0'),
-  GEOCODER_TIMEOUT_MS: Joi.number().integer().min(100).default(4000), // per attempt (2 attempts)
-  // Comma-separated ISO country codes to search in ('' = worldwide)
+  GEOCODER_TIMEOUT_MS: Joi.number().integer().min(100).default(4000), // per attempt
+  // Comma-separated country codes ('' = worldwide)
   GEOCODER_COUNTRY_CODES: Joi.string().allow('').default('in'),
 }).unknown(true);
 

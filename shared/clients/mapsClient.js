@@ -1,16 +1,11 @@
 const config = require('../config');
 
-/**
- * Asks maps-service for the coordinates of an address.
- * Returns { lat, lng, displayName }, or null when the address can't be found.
- * Throws if maps-service (or Nominatim behind it) is unreachable, too slow or failing.
- */
+// Address → { lat, lng, displayName }, or null if not found. Throws if maps-service fails.
 async function geocode(address, options = {}) {
   const {
     baseUrl = config.services.maps,
     token = config.internal.token,
-    // maps-service may try Nominatim twice and queue the call (1 request/s); stays below the
-    // gateway's 10 s proxy timeout with the default 4 s per attempt
+    // 2 Nominatim attempts + queueing, still under the gateway's 10 s timeout
     timeoutMs = config.geocoder.timeoutMs * 2 + 1000,
   } = options;
 

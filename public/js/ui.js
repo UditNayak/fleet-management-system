@@ -1,12 +1,8 @@
-// Small DOM helpers. Text is always set with textContent, never innerHTML,
-// so data from the API (names, addresses, messages) can't inject HTML.
+// DOM helpers. Always textContent, never innerHTML (no XSS).
 
 export const $ = (selector) => document.querySelector(selector);
 
-/**
- * Creates an element: h('td', { className: 'x', onclick }, 'text', childElement)
- * Attributes starting with "on" become event listeners; null/false children are skipped.
- */
+// h('td', { className, onclick }, ...children)
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs ?? {})) {

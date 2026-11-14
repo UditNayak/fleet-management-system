@@ -1,10 +1,6 @@
 const config = require('../config');
 
-/**
- * Asks notification-service to send SMS for an event and returns its summary ({ sent, failed }).
- * Throws if the service is unreachable, too slow or answers with an error;
- * callers decide what to do (vehicle-service just logs it).
- */
+// Sends an event to notification-service, returns { sent, failed }. Throws on failure.
 async function notify(event, options = {}) {
   const {
     baseUrl = config.services.notifications,

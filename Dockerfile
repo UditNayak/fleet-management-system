@@ -2,7 +2,7 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# http-proxy (used by http-proxy-middleware) calls the deprecated util._extend; silence only that warning
+# Silence the util._extend deprecation warning from http-proxy
 ENV NODE_OPTIONS=--disable-warning=DEP0060
 
 # Install dependencies first so this layer is cached until package files change

@@ -1,5 +1,4 @@
-// Talks to the gateway exactly like Postman does: x-api-key + Authorization: Bearer <jwt>.
-// The session lives in sessionStorage, so closing the tab logs you out.
+// fetch wrapper: sends x-api-key + Bearer token. Session lives in sessionStorage.
 
 const STORAGE_KEY = 'fleet-session';
 
@@ -24,7 +23,7 @@ export const session = {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
     } catch {
-      // storage blocked (private mode): the session just won't survive a reload
+      // storage blocked (private mode)
     }
   },
   clear() {
@@ -36,7 +35,7 @@ export const session = {
   },
 };
 
-// Listeners the app registers: onUnauthorized (token expired → login), onRateLimit (header values)
+// set by app.js
 export const events = { onUnauthorized: () => {}, onRateLimit: () => {} };
 
 // draft-8 header, e.g.  RateLimit: "100-in-15min"; r=87; t=600
@@ -50,11 +49,7 @@ function readRateLimit(res) {
   if (!Number.isNaN(remaining)) events.onRateLimit({ remaining, limit, resetSeconds });
 }
 
-/**
- * api('/api/maps/nearby', { query: { lat, lng } })
- * api('/api/vehicles/1/status', { method: 'PATCH', body: { status } })
- * Resolves with the parsed JSON; rejects with ApiError (status, code, message).
- */
+// api(path, { method, query, body }) → parsed JSON, or throws ApiError
 export async function api(path, { method = 'GET', query, body, auth = true, apiKey } = {}) {
   const current = session.get();
   const url = new URL(path, window.location.origin);

@@ -1,8 +1,7 @@
 const { rateLimit } = require('express-rate-limit');
 const AppError = require('../../../shared/errors/AppError');
 
-// Limits requests per API key (runs after apiKeyAuth, so req.apiKey is always set).
-// Counters are kept in memory — fine for a single gateway instance.
+// Per API key, in memory (fine for one gateway instance)
 function createRateLimiter({ windowMs, max }) {
   return rateLimit({
     windowMs,

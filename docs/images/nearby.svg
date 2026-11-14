@@ -1,0 +1,72 @@
+<svg viewBox="-10 -10 1020 265" width="1020" height="265" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nearby vehicle search">
+  <style>
+text{text-anchor:middle;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+.box{fill:#fff;stroke:#1f3a5f;stroke-width:1.5}.box-accent{fill:#1f3a5f;stroke:#1f3a5f}
+.box-ext{fill:#eef6f3;stroke:#0e7c66;stroke-width:1.5}.box-err{fill:#fef3f2;stroke:#b42318;stroke-width:1.3}
+.boundary{fill:#f5f7fa;stroke:#98a2b3;stroke-width:1.2;stroke-dasharray:6 4}.db{fill:#e9eef5;stroke:#1f3a5f;stroke-width:1.5}
+.ln{fill:none;stroke:#1f3a5f;stroke-width:1.5}.ln-ext{fill:none;stroke:#0e7c66;stroke-width:1.5}
+.ln-err{fill:none;stroke:#b42318;stroke-width:1.3;stroke-dasharray:4 3}
+.tb{font-size:14px;font-weight:600;fill:#101828}.ts{font-size:11.5px;fill:#475467}
+.tm{font-size:10.5px;font-family:Menlo,Consolas,monospace;fill:#1f3a5f}.tw{fill:#fff}.tw2{fill:#c7d4e4}
+.terr{fill:#b42318}.tlabel{font-size:11px;fill:#667085;font-style:italic}.tleft{text-anchor:start}
+</style>
+  <rect x="-10" y="-10" width="1020" height="265" rx="12" fill="#ffffff"/>
+  <defs>
+    <marker id="ah-nb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f3a5f"/></marker>
+    <marker id="ah-nb-err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b42318"/></marker>
+  </defs>
+
+  <rect class="box-ext" x="10" y="140" width="165" height="95" rx="8"/>
+  <text class="tb" x="92" y="166">Search request</text>
+  <text class="tm" x="92" y="186">GET /api/maps/nearby</text>
+  <text class="ts" x="92" y="205">address=Koramangala</text>
+  <text class="ts" x="92" y="222">or lat &amp; lng · radiusKm=4</text>
+
+  <line class="ln" x1="175" y1="187" x2="203" y2="187" marker-end="url(#ah-nb)"/>
+
+  <rect class="box-accent" x="205" y="140" width="150" height="95" rx="8"/>
+  <text class="tb tw" x="280" y="172">Maps service</text>
+  <text class="ts tw2" x="280" y="193">validates the input:</text>
+  <text class="ts tw2" x="280" y="210">address or lat / lng</text>
+
+  <!-- address branch -->
+  <path class="ln" d="M280 140 V55 H388" marker-end="url(#ah-nb)"/>
+  <text class="tlabel tleft" x="290" y="100">address given</text>
+
+  <rect class="box-ext" x="390" y="15" width="210" height="80" rx="8"/>
+  <text class="tb" x="495" y="41">OpenStreetMap Nominatim</text>
+  <text class="ts" x="495" y="61">address → lat / lng</text>
+  <text class="ts" x="495" y="78">cached 24 h · max 1 request / s</text>
+
+  <line class="ln-err" x1="600" y1="55" x2="653" y2="55" marker-end="url(#ah-nb-err)"/>
+  <rect class="box-err" x="655" y="15" width="210" height="80" rx="8"/>
+  <text class="tb terr" x="760" y="41">Geocoding fails</text>
+  <text class="tm" x="760" y="61">404 ADDRESS_NOT_FOUND</text>
+  <text class="tm" x="760" y="78">503 GEOCODER_UNAVAILABLE</text>
+
+  <line class="ln" x1="510" y1="95" x2="510" y2="138" marker-end="url(#ah-nb)"/>
+  <text class="tlabel tleft" x="518" y="122">coordinates</text>
+
+  <line class="ln" x1="355" y1="187" x2="418" y2="187" marker-end="url(#ah-nb)"/>
+  <text class="tlabel" x="387" y="178">lat &amp; lng</text>
+
+  <rect class="box" x="420" y="140" width="180" height="95" rx="8"/>
+  <text class="tb" x="510" y="166">MongoDB geo query</text>
+  <text class="ts" x="510" y="186">$geoNear on the</text>
+  <text class="ts" x="510" y="203">2dsphere location index,</text>
+  <text class="ts" x="510" y="220">within radiusKm</text>
+
+  <line class="ln" x1="600" y1="187" x2="633" y2="187" marker-end="url(#ah-nb)"/>
+
+  <rect class="box" x="635" y="140" width="165" height="95" rx="8"/>
+  <text class="tb" x="717" y="172">Nearest first</text>
+  <text class="ts" x="717" y="193">each vehicle with</text>
+  <text class="ts" x="717" y="210">its distanceKm</text>
+
+  <line class="ln" x1="800" y1="187" x2="833" y2="187" marker-end="url(#ah-nb)"/>
+
+  <rect class="box-ext" x="835" y="140" width="155" height="95" rx="8"/>
+  <text class="tb" x="912" y="172">API / dashboard</text>
+  <text class="ts" x="912" y="193">JSON list, or pins +</text>
+  <text class="ts" x="912" y="210">radius circle on the map</text>
+</svg>

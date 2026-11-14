@@ -19,8 +19,7 @@ describe('Status change → SMS notification (flow 4)', () => {
   let driver;
   let vehicle;
 
-  // vehicle-service calls notification-service over real HTTP. In tests the client points to
-  // NOTIFICATION_SERVICE_URL=http://127.0.0.1:3905 (docker-compose), so start the real app there.
+  // Status changes call notification-service over HTTP, so run it on its test port
   before((done) => {
     const { port } = new URL(config.services.notifications);
     server = notificationApp.listen(port, '127.0.0.1', done);

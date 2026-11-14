@@ -1,0 +1,88 @@
+<svg viewBox="-10 -10 1020 350" width="1020" height="350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMS notification flow">
+  <style>
+text{text-anchor:middle;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}
+.box{fill:#fff;stroke:#1f3a5f;stroke-width:1.5}.box-accent{fill:#1f3a5f;stroke:#1f3a5f}
+.box-ext{fill:#eef6f3;stroke:#0e7c66;stroke-width:1.5}.box-err{fill:#fef3f2;stroke:#b42318;stroke-width:1.3}
+.boundary{fill:#f5f7fa;stroke:#98a2b3;stroke-width:1.2;stroke-dasharray:6 4}.db{fill:#e9eef5;stroke:#1f3a5f;stroke-width:1.5}
+.ln{fill:none;stroke:#1f3a5f;stroke-width:1.5}.ln-ext{fill:none;stroke:#0e7c66;stroke-width:1.5}
+.ln-err{fill:none;stroke:#b42318;stroke-width:1.3;stroke-dasharray:4 3}
+.tb{font-size:14px;font-weight:600;fill:#101828}.ts{font-size:11.5px;fill:#475467}
+.tm{font-size:10.5px;font-family:Menlo,Consolas,monospace;fill:#1f3a5f}.tw{fill:#fff}.tw2{fill:#c7d4e4}
+.terr{fill:#b42318}.tlabel{font-size:11px;fill:#667085;font-style:italic}.tleft{text-anchor:start}
+</style>
+  <rect x="-10" y="-10" width="1020" height="350" rx="12" fill="#ffffff"/>
+  <defs>
+    <marker id="ah-nt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f3a5f"/></marker>
+  </defs>
+
+  <!-- triggers -->
+  <rect class="box-ext" x="10" y="20" width="200" height="86" rx="8"/>
+  <text class="tb" x="110" y="48">Status change</text>
+  <text class="tm" x="110" y="68">PATCH /api/vehicles/:id/status</text>
+  <text class="ts" x="110" y="87">(admin / fleet manager)</text>
+
+  <rect class="box-ext" x="10" y="190" width="200" height="100" rx="8"/>
+  <text class="tb" x="110" y="217">Critical event</text>
+  <text class="tm" x="110" y="237">POST /api/telemetry</text>
+  <text class="ts" x="110" y="256">engine_fault · low_battery</text>
+  <text class="ts" x="110" y="273">emergency_stop</text>
+
+  <line class="ln" x1="210" y1="63" x2="243" y2="63" marker-end="url(#ah-nt)"/>
+  <line class="ln" x1="210" y1="240" x2="243" y2="240" marker-end="url(#ah-nt)"/>
+
+  <!-- services -->
+  <rect class="box" x="245" y="20" width="150" height="86" rx="8"/>
+  <text class="tb" x="320" y="48">Vehicle service</text>
+  <text class="ts" x="320" y="68">saves the status +</text>
+  <text class="ts" x="320" y="85">status history</text>
+
+  <rect class="box" x="245" y="190" width="150" height="100" rx="8"/>
+  <text class="tb" x="320" y="217">Telemetry service</text>
+  <text class="ts" x="320" y="237">stores the reading</text>
+  <text class="ts" x="320" y="256">cooldown: 1 alert per</text>
+  <text class="ts" x="320" y="273">vehicle + event / 5 min</text>
+
+  <path class="ln" d="M395 63 H418 V130 H438" marker-end="url(#ah-nt)"/>
+  <path class="ln" d="M395 240 H418 V180 H438" marker-end="url(#ah-nt)"/>
+
+  <!-- notification service -->
+  <rect class="box-accent" x="440" y="105" width="170" height="100" rx="8"/>
+  <text class="tb tw" x="525" y="133">Notification service</text>
+  <text class="tm tw" x="525" y="155">/internal/events</text>
+  <text class="ts tw2" x="525" y="174">internal token,</text>
+  <text class="ts tw2" x="525" y="191">Docker network only</text>
+
+  <path class="ln" d="M610 130 H630 V50 H648" marker-end="url(#ah-nt)"/>
+
+  <rect class="box" x="650" y="10" width="160" height="80" rx="8"/>
+  <text class="tb" x="730" y="36">Recipients</text>
+  <text class="ts" x="730" y="56">admins + fleet managers</text>
+  <text class="ts" x="730" y="73">(+ assigned driver)</text>
+
+  <line class="ln" x1="730" y1="90" x2="730" y2="123" marker-end="url(#ah-nt)"/>
+
+  <rect class="box-ext" x="650" y="125" width="160" height="80" rx="8"/>
+  <text class="tb" x="730" y="151">Mock SMS provider</text>
+  <text class="ts" x="730" y="171">one SMS per recipient</text>
+  <text class="ts" x="730" y="188">numbers …0000 fail</text>
+
+  <line class="ln" x1="730" y1="205" x2="730" y2="238" marker-end="url(#ah-nt)"/>
+
+  <rect class="box" x="650" y="240" width="160" height="80" rx="8"/>
+  <text class="tb" x="730" y="266">Notification record</text>
+  <text class="ts" x="730" y="286">status: sent / failed</text>
+  <text class="ts" x="730" y="303">stored in MongoDB</text>
+
+  <line class="ln" x1="810" y1="165" x2="843" y2="165" marker-end="url(#ah-nt)"/>
+  <line class="ln" x1="810" y1="280" x2="843" y2="280" marker-end="url(#ah-nt)"/>
+
+  <rect class="box-ext" x="845" y="125" width="145" height="80" rx="8"/>
+  <text class="tb" x="917" y="151">Status response</text>
+  <text class="ts" x="917" y="171">notifications:</text>
+  <text class="ts" x="917" y="188">sent 2 · failed 1</text>
+
+  <rect class="box-ext" x="845" y="240" width="145" height="80" rx="8"/>
+  <text class="tb" x="917" y="266">SMS log</text>
+  <text class="tm" x="917" y="286">/api/notifications</text>
+  <text class="ts" x="917" y="303">+ stats, dashboard tab</text>
+</svg>
